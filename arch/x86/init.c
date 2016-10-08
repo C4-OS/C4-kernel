@@ -4,7 +4,7 @@ typedef struct vga_char {
 } __attribute__((packed)) vga_char_t;
 
 void arch_init( void ){
-	vga_char_t *foo = (void *)0xb8000;
+	vga_char_t *foo = (void *)0xc00b8000;
 	char *s = " hello, world! ";
 
 	for ( unsigned i = 0; s[i]; i++ ){
