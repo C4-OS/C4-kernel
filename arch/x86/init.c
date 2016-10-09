@@ -1,3 +1,5 @@
+#include <c4/arch/segments.h>
+
 typedef struct vga_char {
 	char text;
 	char color;
@@ -6,6 +8,8 @@ typedef struct vga_char {
 void arch_init( void ){
 	vga_char_t *foo = (void *)0xc00b8000;
 	char *s = " hello, world! ";
+
+	init_segment_descs( );
 
 	for ( unsigned i = 0; s[i]; i++ ){
 		foo[i + 3].text  = s[i];

@@ -1,2 +1,4 @@
 k-obj += arch/x86/entry.o
 k-obj += arch/x86/init.o
+k-obj += arch/x86/segments.o
+k-obj += arch/x86/gdt.o
