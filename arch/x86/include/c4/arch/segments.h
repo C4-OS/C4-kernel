@@ -24,6 +24,11 @@ enum {
 	SEG_DATA_EXPAND   = 0x4,
 };
 
+enum {
+	SEG_TABLE_GDT = 0,
+	SEG_TABLE_LDT = 1,
+};
+
 typedef struct segment_desc {
 	unsigned limit_low   : 16;
 	unsigned base_low    : 16;
@@ -44,6 +49,17 @@ typedef struct gdt_ptr {
 	uint16_t limit;
 	uint32_t base;
 } __attribute__((packed)) gdt_ptr_t;
+
+// C implementation of segment selector macro in gdt.s
+static inline uint16_t selector( unsigned index, unsigned table, unsigned priv )
+{
+	return (index << 3) | (table << 2) | priv;
+}
+
+// and again the same thing as the ring() macro in gdt.s
+static inline unsigned ring(unsigned n){
+	return n;
+}
 
 void init_segment_descs( void );
 void load_gdt( void *ptr );
