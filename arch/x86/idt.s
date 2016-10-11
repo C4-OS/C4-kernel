@@ -33,17 +33,20 @@ load_idt:
 
 extern isr_dispatch
 isr_common:
-    cli
     pusha
 
     ;mov ax, ds
     ;push eax
     ;SET_DATA_SELECTORS selector(2, GDT, ring(0))
+    push esp
 
     call isr_dispatch
 
     ;pop eax
     ;SET_DATA_SELECTORS ax
+
+    ; remove old esp value
+    pop eax
 
     popa
     add esp, 8

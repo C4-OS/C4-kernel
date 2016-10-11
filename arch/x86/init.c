@@ -13,8 +13,10 @@ void arch_init( void ){
 	debug_puts( "done\n" );
 
 	asm volatile ( "sti" );
-	asm volatile ( "int $0" );
+	asm volatile ( "int $1" );
 	asm volatile ( "int $3" );
+	asm volatile ( "int $5" );
+	asm volatile ( "int $15" );
 
 	debug_puts( "hello, world!\n" );
 }

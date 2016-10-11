@@ -33,6 +33,7 @@ typedef struct idt_ptr {
 typedef struct interrupt_frame {
 	uint32_t edi;
 	uint32_t esi;
+	uint32_t ebp;
 	uint32_t esp;
 	uint32_t ebx;
 	uint32_t edx;
@@ -41,7 +42,9 @@ typedef struct interrupt_frame {
 
 	uint8_t intr_num;
 	uint8_t error_no;
-} interrupt_frame_t;
+} __attribute__((packed)) interrupt_frame_t;
+
+typedef void (*intr_handler_t)( interrupt_frame_t *frame );
 
 void init_interrupts( void );
 void load_idt( idt_ptr_t *ptr );
