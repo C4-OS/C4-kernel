@@ -33,11 +33,3 @@ void debug_putchar( int c ){
 			break;
 	}
 }
-
-void debug_puts( const char *str ){
-	for ( unsigned i = 0; str[i]; i++ ){
-		debug_putchar( str[i] );
-	}
-}
-
-void debug_printf( const char *format, ... );

@@ -8,3 +8,11 @@ void *memset( void *s, int c, unsigned n ){
 
 	return s;
 }
+
+unsigned strlen(const char *s){
+	unsigned i = 0;
+
+	for ( i = 0; s[i]; i++ );
+
+	return i;
+}
