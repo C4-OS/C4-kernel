@@ -25,7 +25,7 @@ void debug_putchar( int c ){
 			vgatext[(80 * y_pos) + x_pos].text = c;
 			vgatext[(80 * y_pos) + x_pos].color = 0x7 | 0x10;
 
-			if ( x_pos + 1 > 80 ){
+			if ( x_pos + 1 >= 80 ){
 				y_pos = (y_pos + 1) % 25;
 			}
 

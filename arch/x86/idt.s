@@ -10,8 +10,8 @@ BITS 32
     align 4
     isr%1:
         cli
-        push byte 0
-        push byte %1
+        push dword 0
+        push dword %1
         jmp isr_common
 %endmacro
 
@@ -19,7 +19,10 @@ BITS 32
     align 4
     isr%1:
         cli
-        push byte %1
+        ;; TODO: figure out if this is really right, error code
+        ;; doesn't seem to be pushed when it should be?
+        push dword 0
+        push dword %1
         jmp isr_common
 %endmacro
 

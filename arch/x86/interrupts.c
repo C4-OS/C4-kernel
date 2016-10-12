@@ -27,12 +27,52 @@ static inline void define_intr_descript( interrupt_gate_t *gate,
 }
 
 // TODO: have linked list of handlers to call for a given interrupt
-static inline void register_interrupt( unsigned num, intr_handler_t func ){
+void register_interrupt( unsigned num, intr_handler_t func ){
 	intr_handlers[num] = func;
 }
 
-void test_handler( interrupt_frame_t *frame ){
+void interrupt_print_frame( interrupt_frame_t *frame ){
+	debug_printf( " => edi: 0x%x \n"
+				  " => esi: 0x%x \n"
+				  " => ebp: 0x%x \n"
+				  " => esp: 0x%x \n"
+				  " => ebx: 0x%x \n"
+				  " => edx: 0x%x \n"
+				  " => ecx: 0x%x \n"
+				  " => eax: 0x%x \n"
+				  " => eip: 0x%x \n"
+				  " => interrupt: %u \n"
+				  " => error:     %u \n"
+				  ,
+				  frame->edi, frame->esi, frame->ebp, frame->esp,
+				  frame->ebx, frame->edx, frame->ecx, frame->eax,
+				  frame->eip, frame->intr_num, frame->error_num
+				  );
+}
+
+static void test_handler( interrupt_frame_t *frame ){
 	debug_printf( "interrupt handler called for %u\n", frame->intr_num );
+
+	//interrupt_print_frame( frame );
+	//for ( ;; );
+}
+
+static void gen_protect_fault( interrupt_frame_t *frame ){
+	debug_printf( "=== general protection fault! ===\n" );
+	debug_printf( "=== error: 0b%b ===\n", frame->error_num );
+
+	interrupt_print_frame( frame );
+
+	for (;;);
+}
+
+static void double_fault_handler( interrupt_frame_t *frame ){
+	debug_printf( "=== double fault! ===\n" );
+	debug_printf( "=== error: 0b%b ===\n", frame->error_num );
+
+	interrupt_print_frame( frame );
+
+	for (;;);
 }
 
 void init_interrupts( void ){
@@ -48,6 +88,8 @@ void init_interrupts( void ){
 
 	register_interrupt( 1, test_handler );
 	register_interrupt( 5, test_handler );
+	register_interrupt( INTERRUPT_GEN_PROTECT,  gen_protect_fault );
+	register_interrupt( INTERRUPT_DOUBLE_FAULT, double_fault_handler );
 
 	idtr.base  = (uint32_t)intr_table;
 	idtr.limit = sizeof(interrupt_gate_t[256]) - 1;
