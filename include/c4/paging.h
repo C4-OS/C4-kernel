@@ -10,8 +10,10 @@ typedef enum {
 	PAGE_SUPERVISOR = 8,
 } page_flags_t;
 
-void *map_page( page_dir_t *dir, unsigned permissions, void *vaddress );
-void *map_phys_page( page_dir_t *dir, unsigned perm, void *vaddr, void *raddr );
-void unmap_page( page_dir_t *dir, void *vaddress );
+void *map_page( unsigned permissions, void *vaddress );
+void *map_phys_page( unsigned perm, void *vaddr, void *raddr );
+void unmap_page( void *vaddress );
+
+page_dir_t *current_page_dir( void );
 
 #endif
