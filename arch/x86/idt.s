@@ -26,6 +26,15 @@ BITS 32
         jmp isr_common
 %endmacro
 
+%macro IRQ 1
+    align 4
+    isr%1:
+        cli
+        push dword 0
+        push dword %1
+        jmp irq_common
+%endmacro
+
 section .text
 
 global load_idt
@@ -44,6 +53,28 @@ isr_common:
     push esp
 
     call isr_dispatch
+
+    ;pop eax
+    ;SET_DATA_SELECTORS ax
+
+    ; remove old esp value
+    pop eax
+
+    popa
+    add esp, 8
+    sti
+    iret
+
+extern irq_dispatch
+irq_common:
+    pusha
+
+    ;mov ax, ds
+    ;push eax
+    ;SET_DATA_SELECTORS selector(2, GDT, ring(0))
+    push esp
+
+    call irq_dispatch
 
     ;pop eax
     ;SET_DATA_SELECTORS ax
@@ -89,11 +120,24 @@ ISR_NOERROR 29
 ISR_NOERROR 30
 ISR_NOERROR 31
 
+%assign i 32
+%rep 16
+    IRQ i
+    %assign i i+1
+%endrep
+
+%assign i 48
+%rep 256 - 48
+    ISR_NOERROR i
+    %assign i i+1
+%endrep
+
 section .data
 global isr_stubs
 isr_stubs:
     %assign i 0
-    %rep 32
+    ;%rep 32
+    %rep 256
         dd isr %+ i
         %assign i i+1
     %endrep

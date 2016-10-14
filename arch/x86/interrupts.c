@@ -6,6 +6,7 @@
 
 static interrupt_gate_t intr_table[256];
 static intr_handler_t   intr_handlers[256];
+static unsigned long    intr_stats[256];
 static idt_ptr_t idtr;
 
 // defined in idt.s
@@ -82,12 +83,11 @@ void init_interrupts( void ){
 	memset( intr_table,    0, sizeof( intr_table ));
 	memset( intr_handlers, 0, sizeof( intr_handlers ));
 
-	for ( unsigned i = 0; i < 32; i++ ){
+	for ( unsigned i = 0; i < 256; i++ ){
 		define_intr_descript( intr_table + i, stubs[i], ring(0) );
 	}
 
-	register_interrupt( 1, test_handler );
-	register_interrupt( 5, test_handler );
+	register_interrupt( INTERRUPT_DEBUG,        test_handler );
 	register_interrupt( INTERRUPT_GEN_PROTECT,  gen_protect_fault );
 	register_interrupt( INTERRUPT_DOUBLE_FAULT, double_fault_handler );
 
@@ -98,8 +98,11 @@ void init_interrupts( void ){
 }
 
 void isr_dispatch( interrupt_frame_t *frame ){
-	debug_printf( "interrupts are working! frame at %p\n", frame );
-	debug_printf( "got interrupt %u\n", frame->intr_num );
+	intr_stats[frame->intr_num]++;
+	//debug_printf( "interrupts are working! frame at %p\n", frame );
+	debug_printf( "got interrupt %u, call %u \n",
+				  frame->intr_num,
+				  intr_stats[frame->intr_num] );
 
 	if ( intr_handlers[frame->intr_num] ){
 		intr_handlers[frame->intr_num]( frame );
@@ -107,4 +110,14 @@ void isr_dispatch( interrupt_frame_t *frame ){
 	} else {
 		debug_printf( "have unhandled interrupt %u\n", frame->intr_num );
 	}
+}
+
+#include <c4/arch/pic.h>
+void irq_dispatch( interrupt_frame_t *frame ){
+	// interrupt stubs in idt.s disable maskable interrupts,
+	// so setting end of interrupt here won't reault in nested interrupts
+	clear_pic_interrupt( );
+
+	// then proceed to handle things like a normal isr
+	isr_dispatch( frame );
 }

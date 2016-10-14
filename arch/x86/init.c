@@ -1,5 +1,7 @@
 #include <c4/arch/segments.h>
 #include <c4/arch/interrupts.h>
+#include <c4/arch/ioports.h>
+#include <c4/arch/pic.h>
 //#include <c4/arch/paging.h>
 #include <c4/paging.h>
 #include <c4/debug.h>
@@ -10,7 +12,12 @@ void arch_init( void ){
 	init_segment_descs( );
 	debug_puts( "done\n" );
 
+	debug_puts( "Initializing pic... " );
+	remap_pic_vectors_default( );
+	debug_puts( "done\n" );
+
 	debug_puts( "Initializing interrupts... " );
+	//remap_pic_vectors( 0x20, 0x28 );
 	init_interrupts( );
 	debug_puts( "done\n" );
 
@@ -18,7 +25,12 @@ void arch_init( void ){
 	init_paging( );
 	debug_puts( "done\n" );
 
-	//asm volatile ( "sti" );
+	//asm volatile ( "mov $0xfd, %al; outb $0x21; ");
+	//asm volatile ( "mov $0xff, %al; outb $0xa1; ");
+	//outb( 0xa1, 0xff );
+	//outb( 0x21, 0xfd );
+
+	asm volatile ( "sti" );
 	asm volatile ( "int $1" );
 	//asm volatile ( "int $3" );
 	//asm volatile ( "int $5" );
@@ -44,4 +56,6 @@ void arch_init( void ){
 	*(uint8_t *)(0xa0000000) = 123;
 
 	debug_puts( "hello, world!\n" );
+
+	for ( ;; );
 }
