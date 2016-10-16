@@ -2,22 +2,28 @@
 #include <c4/arch/interrupts.h>
 #include <c4/arch/ioports.h>
 #include <c4/arch/pic.h>
-//#include <c4/arch/paging.h>
 #include <c4/paging.h>
 #include <c4/debug.h>
 
+#include <c4/klib/bitmap.h>
+#include <c4/klib/string.h>
+#include <c4/mm/region.h>
+#include <c4/mm/slab.h>
+#include <c4/common.h>
+
 void arch_init( void ){
+	slab_t   slab;
+
 	debug_puts( ">> Booting C4 kernel\n" );
-	debug_puts( "Initializing gdt... " );
+	debug_puts( "Initializing GDT... " );
 	init_segment_descs( );
 	debug_puts( "done\n" );
 
-	debug_puts( "Initializing pic... " );
+	debug_puts( "Initializing PIC..." );
 	remap_pic_vectors_default( );
 	debug_puts( "done\n" );
 
 	debug_puts( "Initializing interrupts... " );
-	//remap_pic_vectors( 0x20, 0x28 );
 	init_interrupts( );
 	debug_puts( "done\n" );
 
@@ -25,27 +31,25 @@ void arch_init( void ){
 	init_paging( );
 	debug_puts( "done\n" );
 
-	//asm volatile ( "mov $0xfd, %al; outb $0x21; ");
-	//asm volatile ( "mov $0xff, %al; outb $0xa1; ");
-	//outb( 0xa1, 0xff );
-	//outb( 0x21, 0xfd );
+	debug_puts( "Initializing kernel region... " );
+	region_init_global( );
+	debug_puts( "done\n" );
+
+	/*
+	slab_init_at( &slab, region_get_global(), sizeof(char[32]), NULL, NULL );
+
+	debug_printf( "trying slab allocation... " );
+
+	void *foo = slab_alloc( &slab );
+	memset( foo, 0, sizeof(char[32]));
+	debug_printf( "got %p, freeing\n", foo );
+	slab_free( &slab, foo );
+	*/
 
 	asm volatile ( "sti" );
 	asm volatile ( "int $1" );
-	//asm volatile ( "int $3" );
-	//asm volatile ( "int $5" );
-	//asm volatile ( "int $15" );
-
-	//volatile int a = 0;
-	//asm volatile ("cli");
-
-	//for ( volatile unsigned i = 0; i < 0xffffffff; i++ ){
-		//debug_puts( "a" );
-	//}
-	//while ( 1 );
 
 	map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
-	//map_page( PAGE_READ | PAGE_WRITE, (void*)0xc0000000 );
 
 	*(uint8_t *)(0xa0000000) = 123;
 	debug_printf( "testing: %x\n", *(page_dir_t *)(0xfffff000));
