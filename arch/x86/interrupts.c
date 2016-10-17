@@ -100,15 +100,18 @@ void init_interrupts( void ){
 void isr_dispatch( interrupt_frame_t *frame ){
 	intr_stats[frame->intr_num]++;
 	//debug_printf( "interrupts are working! frame at %p\n", frame );
+	/*
 	debug_printf( "got interrupt %u, call %u \n",
 				  frame->intr_num,
 				  intr_stats[frame->intr_num] );
+	  */
 
 	if ( intr_handlers[frame->intr_num] ){
 		intr_handlers[frame->intr_num]( frame );
 
 	} else {
-		debug_printf( "have unhandled interrupt %u\n", frame->intr_num );
+		debug_printf( "have unhandled interrupt %u, call %u\n",
+		              frame->intr_num, intr_stats[frame->intr_num] );
 	}
 }
 

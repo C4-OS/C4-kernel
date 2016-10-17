@@ -3,19 +3,34 @@
 #include <c4/arch/thread.h>
 #include <c4/paging.h>
 
+typedef struct thread thread_t;
+
+typedef struct thread_list {
+	thread_t *first;
+	unsigned size;
+} thread_list_t;
+
 typedef struct thread {
 	unsigned thread_id;
 	unsigned task_id;
+	unsigned priority;
+	unsigned state;
 
 	thread_regs_t registers;
 	page_dir_t    *page_dir;
-
-	struct thread *next;
-	struct thread *prev;
+	thread_t      *next;
+	thread_t      *prev;
+	thread_list_t *list;
 } thread_t;
 
-unsigned thread_spawn( void (*entry)(void *data) );
-unsigned thread_spawn_at( thread_t *thread, void (*entry)(void *data) );
-void thread_exit( void );
+void init_threading( void );
+thread_t *thread_create( void (*entry)(void *data), void *data );
+void thread_destroy( thread_t *thread );
+
+void thread_list_insert( thread_list_t *list, thread_t *thread );
+void thread_list_remove( thread_t *thread );
+thread_t *thread_list_pop( thread_list_t *list );
+thread_t *thread_list_peek( thread_list_t *list );
+thread_t *thread_find_by_id( thread_list_t *list, unsigned id );
 
 #endif

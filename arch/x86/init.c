@@ -11,9 +11,19 @@
 #include <c4/mm/slab.h>
 #include <c4/common.h>
 
-void arch_init( void ){
-	slab_t   slab;
+#include <c4/thread.h>
 
+void timer_handler( interrupt_frame_t *frame ){
+	static unsigned n = 0;
+
+	debug_printf( "timer! %u\n", n++ );
+}
+
+void test_thread( void *foo ){
+	debug_puts( "hey, I'm a thread\n" );
+}
+
+void arch_init( void ){
 	debug_puts( ">> Booting C4 kernel\n" );
 	debug_puts( "Initializing GDT... " );
 	init_segment_descs( );
@@ -35,18 +45,32 @@ void arch_init( void ){
 	region_init_global( );
 	debug_puts( "done\n" );
 
-	/*
-	slab_init_at( &slab, region_get_global(), sizeof(char[32]), NULL, NULL );
+	debug_puts( "Initializing threading... " );
+	init_threading( );
+	debug_puts( "done\n" );
 
-	debug_printf( "trying slab allocation... " );
+	thread_list_t tlist;
+	memset( &tlist, 0, sizeof( thread_list_t ));
 
-	void *foo = slab_alloc( &slab );
-	memset( foo, 0, sizeof(char[32]));
-	debug_printf( "got %p, freeing\n", foo );
-	slab_free( &slab, foo );
-	*/
+	for ( unsigned i = 3; i; i-- ) {
+		thread_t *foo = thread_create( test_thread, NULL );
+		//debug_printf( "created thread at %p\n", foo );
+		thread_list_insert( &tlist, foo );
+	}
 
-	asm volatile ( "sti" );
+	thread_t *foo = thread_list_pop( &tlist );
+
+	while ( foo ){
+		debug_printf( "have thread %p (%u)\n", foo, sizeof( thread_t ));
+
+		thread_destroy( foo );
+		foo = thread_list_pop( &tlist );
+	}
+
+
+	register_interrupt( 32, timer_handler );
+
+	//asm volatile ( "sti" );
 	asm volatile ( "int $1" );
 
 	map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
