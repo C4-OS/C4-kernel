@@ -43,7 +43,6 @@ void sched_switch_thread( void ){
 }
 
 void sched_jump_to_thread( thread_t *thread ){
-	debug_printf( "switching to thread %u (0x%x)\n", thread->id, thread->registers.eip );
 	current_thread = thread;
 
 	THREAD_RESTORE_STATE( thread );

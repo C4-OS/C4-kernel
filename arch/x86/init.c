@@ -17,7 +17,6 @@
 void timer_handler( interrupt_frame_t *frame ){
 	static unsigned n = 0;
 
-	debug_printf( "timer! %u, ", n++ );
 	sched_switch_thread( );
 }
 
@@ -69,45 +68,11 @@ void arch_init( void ){
 	init_scheduler( );
 	debug_puts( "done\n" );
 
-	/*
-	thread_list_t tlist;
-	memset( &tlist, 0, sizeof( thread_list_t ));
-
-	for ( unsigned i = 3; i; i-- ) {
-		thread_t *foo = thread_create( test_thread, NULL );
-		//debug_printf( "created thread at %p\n", foo );
-		thread_list_insert( &tlist, foo );
-	}
-
-	thread_t *foo = thread_list_pop( &tlist );
-
-	while ( foo ){
-		debug_printf( "have thread %p (%u)\n", foo, sizeof( thread_t ));
-
-		thread_destroy( foo );
-		foo = thread_list_pop( &tlist );
-	}
-	*/
-
 	sched_add_thread( thread_create( test_thread_a, NULL ));
 	sched_add_thread( thread_create( test_thread_b, NULL ));
 	sched_add_thread( thread_create( test_thread_c, NULL ));
 
 	register_interrupt( INTERRUPT_TIMER, timer_handler );
-
-	asm volatile ( "int $1" );
-
-	map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
-
-	*(uint8_t *)(0xa0000000) = 123;
-	debug_printf( "testing: %x\n", *(page_dir_t *)(0xfffff000));
-
-	unmap_page( (void*)0xa0000000 );
-	unmap_page( (void*)0xa0000000 );
-	map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
-	*(uint8_t *)(0xa0000000) = 123;
-
-	debug_puts( "hello, world!\n" );
 
 	asm volatile ( "sti" );
 
