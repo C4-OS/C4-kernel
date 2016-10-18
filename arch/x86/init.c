@@ -12,15 +12,31 @@
 #include <c4/common.h>
 
 #include <c4/thread.h>
+#include <c4/scheduler.h>
 
 void timer_handler( interrupt_frame_t *frame ){
 	static unsigned n = 0;
 
-	debug_printf( "timer! %u\n", n++ );
+	debug_printf( "timer! %u, ", n++ );
+	sched_switch_thread( );
 }
 
-void test_thread( void *foo ){
-	debug_puts( "hey, I'm a thread\n" );
+void test_thread_a( void *foo ){
+	for (unsigned n = 0 ;; n++) {
+		debug_printf( "foo! : +%u\n", n );
+	}
+}
+
+void test_thread_b( void *foo ){
+	for (unsigned n = 0 ;; n++) {
+		debug_printf( "bar! : -%u\n", n );
+	}
+}
+
+void test_thread_c( void *foo ){
+	for (unsigned n = 0 ;; n++) {
+		debug_printf( "baz! : -%u\n", n );
+	}
 }
 
 void arch_init( void ){
@@ -49,6 +65,11 @@ void arch_init( void ){
 	init_threading( );
 	debug_puts( "done\n" );
 
+	debug_puts( "Initializing scheduler... " );
+	init_scheduler( );
+	debug_puts( "done\n" );
+
+	/*
 	thread_list_t tlist;
 	memset( &tlist, 0, sizeof( thread_list_t ));
 
@@ -66,11 +87,14 @@ void arch_init( void ){
 		thread_destroy( foo );
 		foo = thread_list_pop( &tlist );
 	}
+	*/
 
+	sched_add_thread( thread_create( test_thread_a, NULL ));
+	sched_add_thread( thread_create( test_thread_b, NULL ));
+	sched_add_thread( thread_create( test_thread_c, NULL ));
 
-	register_interrupt( 32, timer_handler );
+	register_interrupt( INTERRUPT_TIMER, timer_handler );
 
-	//asm volatile ( "sti" );
 	asm volatile ( "int $1" );
 
 	map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
@@ -84,6 +108,8 @@ void arch_init( void ){
 	*(uint8_t *)(0xa0000000) = 123;
 
 	debug_puts( "hello, world!\n" );
+
+	asm volatile ( "sti" );
 
 	for ( ;; );
 }

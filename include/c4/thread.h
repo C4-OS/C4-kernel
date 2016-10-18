@@ -11,16 +11,19 @@ typedef struct thread_list {
 } thread_list_t;
 
 typedef struct thread {
-	unsigned thread_id;
-	unsigned task_id;
-	unsigned priority;
-	unsigned state;
-
-	thread_regs_t registers;
 	page_dir_t    *page_dir;
 	thread_t      *next;
 	thread_t      *prev;
 	thread_list_t *list;
+	void          *stack;
+
+	thread_regs_t registers;
+
+	unsigned id;
+	unsigned task_id;
+	unsigned priority;
+	unsigned state;
+	unsigned flags;
 } thread_t;
 
 void init_threading( void );
