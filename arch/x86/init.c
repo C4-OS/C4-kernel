@@ -13,11 +13,56 @@
 
 #include <c4/thread.h>
 #include <c4/scheduler.h>
+#include <c4/message.h>
 
 void timer_handler( interrupt_frame_t *frame ){
 	static unsigned n = 0;
 
+	if ( (++n % 2) == 0 ){
+		message_t msg = { n };
+		//thread_t *foo = sched_get_thread_by_id( 2 );
+
+		//debug_printf( "send message: %u \n", message_try_send( &msg, 2 ));
+		message_try_send( &msg, 2 );
+	}
+
 	sched_switch_thread( );
+}
+
+void test_thread_client( void *foo ){
+	unsigned n = 0;
+	debug_printf( "sup man\n" );
+
+	while ( true ){
+		message_t buf;
+
+		//debug_printf( "sup man\n"j);
+		message_recieve( &buf );
+
+		debug_printf( "got a message: %u,  %u\n", buf.data, n++ );
+
+		if ( n % 4 == 0 ){
+			message_send( &buf, 3 );
+		}
+	}
+}
+
+void test_thread_meh( void *foo ){
+	unsigned n = 0;
+
+	while ( true ){
+		message_t buf;
+
+		for ( unsigned k = 0; k < 50; k++ ){
+			asm volatile ( "pusha;"
+						   "call sched_switch_thread;"
+						   "popa;" );
+		}
+
+		message_recieve( &buf );
+
+		debug_printf( ">>> buzz, %u\n", buf.data );
+	}
 }
 
 void test_thread_a( void *foo ){
@@ -68,13 +113,17 @@ void arch_init( void ){
 	init_scheduler( );
 	debug_puts( "done\n" );
 
+	sched_add_thread( thread_create( test_thread_client, NULL ));
+	sched_add_thread( thread_create( test_thread_meh, NULL ));
+	/*
 	sched_add_thread( thread_create( test_thread_a, NULL ));
 	sched_add_thread( thread_create( test_thread_b, NULL ));
 	sched_add_thread( thread_create( test_thread_c, NULL ));
+	*/
 
 	register_interrupt( INTERRUPT_TIMER, timer_handler );
 
-	asm volatile ( "sti" );
+	//asm volatile ( "sti" );
 
 	for ( ;; );
 }

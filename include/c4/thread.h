@@ -2,6 +2,7 @@
 #define _C4_THREAD_H 1
 #include <c4/arch/thread.h>
 #include <c4/paging.h>
+#include <c4/message.h>
 
 typedef struct thread thread_t;
 
@@ -18,6 +19,7 @@ typedef struct thread {
 	void          *stack;
 
 	thread_regs_t registers;
+	message_t     message;
 
 	unsigned id;
 	unsigned task_id;
@@ -34,6 +36,5 @@ void thread_list_insert( thread_list_t *list, thread_t *thread );
 void thread_list_remove( thread_t *thread );
 thread_t *thread_list_pop( thread_list_t *list );
 thread_t *thread_list_peek( thread_list_t *list );
-thread_t *thread_find_by_id( thread_list_t *list, unsigned id );
 
 #endif

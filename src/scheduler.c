@@ -21,12 +21,23 @@ void init_scheduler( void ){
 	current_thread = sched_list.first;
 }
 
+static inline thread_t *next_thread( thread_t *thread ){
+	thread_t *foo = thread->next;
+
+	if ( !foo ){
+		foo = sched_list.first;
+	}
+
+	return foo;
+}
+
 void sched_switch_thread( void ){
-	thread_t *next = current_thread->next;
+	volatile thread_t *next = next_thread( current_thread );
 	volatile bool switched = false;
 
-	if ( !next ){
-		next = sched_list.first;
+	// TODO: move threads to a seperate 'waiting' list
+	while ( next->state != SCHED_STATE_RUNNING ){
+		next = next_thread( next );
 	}
 
 	if ( current_thread->flags & SCHED_FLAG_HAS_RAN ){
@@ -54,4 +65,20 @@ void sched_add_thread( thread_t *thread ){
 
 void sched_thread_exit( void ){
 	for (;;);
+}
+
+thread_t *sched_get_thread_by_id( unsigned id ){
+	thread_t *temp = sched_list.first;
+
+	for ( ; temp; temp = temp->next ){
+		if ( temp->id == id ){
+			return temp;
+		}
+	}
+
+	return NULL;
+}
+
+thread_t *sched_current_thread( void ){
+	return current_thread;
 }
