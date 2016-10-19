@@ -123,7 +123,7 @@ void arch_init( void ){
 
 	register_interrupt( INTERRUPT_TIMER, timer_handler );
 
-	//asm volatile ( "sti" );
+	asm volatile ( "sti" );
 
 	for ( ;; );
 }

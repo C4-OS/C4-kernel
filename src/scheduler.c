@@ -37,19 +37,14 @@ void sched_switch_thread( void ){
 
 	// TODO: move threads to a seperate 'waiting' list
 	while ( next->state != SCHED_STATE_RUNNING ){
-		next = next_thread( next );
+		next = next_thread((thread_t *)next );
 	}
 
-	if ( current_thread->flags & SCHED_FLAG_HAS_RAN ){
-		THREAD_SAVE_STATE( current_thread );
-
-	} else {
-		current_thread->flags |= SCHED_FLAG_HAS_RAN;
-	}
+	THREAD_SAVE_STATE( current_thread );
 
 	if ( !switched && next != current_thread ){
 		switched = true;
-		sched_jump_to_thread( next );
+		sched_jump_to_thread((thread_t *)next );
 	}
 }
 

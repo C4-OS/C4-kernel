@@ -5,7 +5,7 @@
 typedef struct thread thread_t;
 
 typedef struct thread_registers {
-	uint32_t eax, ebx, ecx, edx, esi, edi, ebp, esp, eip;
+	uint32_t ebp, esp, eip;
 } thread_regs_t;
 
 #define THREAD_SAVE_STATE(T) { \
@@ -20,12 +20,17 @@ typedef struct thread_registers {
 	}
 
 #define THREAD_RESTORE_STATE(T) { \
-		asm volatile ( "mov %0, %%esp" :: "r"((T)->registers.esp) ); \
-		asm volatile ( "mov %0, %%ebp" :: "r"((T)->registers.ebp) ); \
-		asm volatile ( "mov %0, %%ecx" :: "r"((T)->registers.eip) ); \
-		asm volatile ( "sti" ); \
-		asm volatile ( "jmp *%ecx" ); \
-	}
+        asm volatile ( "mov %0, %%esp;" \
+                       "mov %1, %%ebp;" \
+                       "mov %2, %%eax;"  \
+                       "sti;" \
+                       "jmp *%%eax;" \
+            :: "g"((T)->registers.esp), \
+               "g"((T)->registers.ebp), \
+               "g"((T)->registers.eip)  \
+            : "eax" \
+        ); \
+    }
 
 void thread_set_init_state( thread_t *thread,
                             void (*entry)(void *data),
