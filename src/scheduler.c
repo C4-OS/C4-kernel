@@ -18,13 +18,16 @@ void init_scheduler( void ){
 
 	sched_add_thread( thread_create( idle_thread, NULL ));
 
-	current_thread = sched_list.first;
+	current_thread = NULL;
 }
 
 static inline thread_t *next_thread( thread_t *thread ){
-	thread_t *foo = thread->next;
+	thread_t *foo = thread;
 
-	if ( !foo ){
+	if ( foo && foo->next ){
+		foo = foo->next;
+
+	} else {
 		foo = sched_list.first;
 	}
 
@@ -40,7 +43,9 @@ void sched_switch_thread( void ){
 		next = next_thread((thread_t *)next );
 	}
 
-	THREAD_SAVE_STATE( current_thread );
+	if ( current_thread ){
+		THREAD_SAVE_STATE( current_thread );
+	}
 
 	if ( !switched && next != current_thread ){
 		switched = true;
