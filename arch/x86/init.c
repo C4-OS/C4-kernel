@@ -66,9 +66,11 @@ void test_thread_meh( void *foo ){
 }
 
 void test_thread_a( void *foo ){
-	for (unsigned n = 0 ;; n++) {
+	for (unsigned n = 0 ; n < 3; n++) {
 		debug_printf( "foo! : +%u\n", n );
 	}
+
+	sched_thread_exit( );
 }
 
 void test_thread_b( void *foo ){
@@ -115,8 +117,10 @@ void arch_init( void ){
 
 	sched_add_thread( thread_create( test_thread_client, NULL ));
 	sched_add_thread( thread_create( test_thread_meh, NULL ));
-	/*
 	sched_add_thread( thread_create( test_thread_a, NULL ));
+	sched_add_thread( thread_create( test_thread_a, NULL ));
+	//sched_add_thread( thread_create( test_thread_a, NULL ));
+	/*
 	sched_add_thread( thread_create( test_thread_b, NULL ));
 	sched_add_thread( thread_create( test_thread_c, NULL ));
 	*/

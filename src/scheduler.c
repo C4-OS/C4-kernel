@@ -64,7 +64,21 @@ void sched_add_thread( thread_t *thread ){
 }
 
 void sched_thread_exit( void ){
+	debug_printf( "got to exit, thread %u\n", current_thread->id );
+
+	// TODO: Add syncronization here, to prevent current_thread from
+	//       being left in an inconsistent state if a task switch happens
+	//       this will probably crash randomly until it's fixed
+
+	thread_list_remove( current_thread );
+	current_thread = NULL;
+
+	asm volatile ( "pusha;"
+				   "call sched_switch_thread;"
+				   "popa;" );
+
 	for (;;);
+
 }
 
 thread_t *sched_get_thread_by_id( unsigned id ){
