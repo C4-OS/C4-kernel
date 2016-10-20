@@ -48,15 +48,11 @@ void test_thread_client( void *foo ){
 }
 
 void test_thread_meh( void *foo ){
-	unsigned n = 0;
-
 	while ( true ){
 		message_t buf;
 
 		for ( unsigned k = 0; k < 50; k++ ){
-			asm volatile ( "pusha;"
-						   "call sched_switch_thread;"
-						   "popa;" );
+			sched_thread_yield( );
 		}
 
 		message_recieve( &buf );
@@ -69,8 +65,6 @@ void test_thread_a( void *foo ){
 	for (unsigned n = 0 ; n < 3; n++) {
 		debug_printf( "foo! : +%u\n", n );
 	}
-
-	sched_thread_exit( );
 }
 
 void test_thread_b( void *foo ){

@@ -1,6 +1,7 @@
 #ifndef _C4_SCHEDULER_H
 #define _C4_SCHEDULER_H 1
 #include <c4/thread.h>
+#include <c4/arch/scheduler.h>
 
 enum {
 	SCHED_FLAG_NONE,

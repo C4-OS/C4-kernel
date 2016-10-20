@@ -73,9 +73,7 @@ void sched_thread_exit( void ){
 	thread_list_remove( current_thread );
 	current_thread = NULL;
 
-	asm volatile ( "pusha;"
-				   "call sched_switch_thread;"
-				   "popa;" );
+	sched_thread_yield( );
 
 	for (;;);
 

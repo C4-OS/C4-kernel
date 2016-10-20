@@ -1,5 +1,6 @@
 #include <c4/message.h>
 #include <c4/scheduler.h>
+#include <c4/arch/scheduler.h>
 #include <stdbool.h>
 
 void message_recieve( message_t *msg ){
@@ -8,9 +9,7 @@ void message_recieve( message_t *msg ){
 	while ( (cur->flags & SCHED_FLAG_PENDING_MSG) == 0 ){
 		cur->state = SCHED_STATE_WAITING;
 
-		asm volatile ( "pusha;"
-					   "call sched_switch_thread;"
-					   "popa;" );
+		sched_thread_yield( );
 	}
 
 	cur->flags &= ~SCHED_FLAG_PENDING_MSG;
@@ -35,8 +34,6 @@ bool message_try_send( message_t *msg, unsigned id ){
 
 void message_send( message_t *msg, unsigned id ){
 	while ( !message_try_send( msg, id )){
-		asm volatile ( "pusha;"
-					   "call sched_switch_thread;"
-					   "popa;" );
+		sched_thread_yield( );
 	}
 }
