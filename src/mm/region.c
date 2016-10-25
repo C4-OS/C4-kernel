@@ -48,10 +48,9 @@ region_t *region_init_at( region_t     *region,
 
 static bitmap_ent_t region_map[32];
 static region_t     global_region;
+static bool         initialized = false;
 
 void region_init_global( void ){
-	static bool initialized = false;
-
 	if ( !initialized ){
 		region_init_at( &global_region, (void*)0xc1000000, region_map,
 		                32 * BITMAP_BPS,
@@ -63,4 +62,8 @@ void region_init_global( void ){
 
 region_t *region_get_global( void ){
 	return &global_region;
+}
+
+bool region_global_is_inited( void ){
+	return initialized;
 }

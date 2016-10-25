@@ -4,6 +4,7 @@
 #include <c4/klib/bitmap.h>
 #include <c4/arch/earlyheap.h>
 #include <c4/arch/interrupts.h>
+#include <c4/common.h>
 
 #define NULL ((void *)0)
 
@@ -94,6 +95,28 @@ static void free_phys_page( void *addr ){
 	}
 }
 
+static page_table_t *page_current_table_entry( unsigned entry ){
+	return (void *)(0xffc00000 | (entry << 12));
+}
+
+static void *page_phys_addr( void *vaddress ){
+	unsigned dirent   = page_dir_entry( vaddress );
+	unsigned tableent = page_table_entry( vaddress );
+
+	page_dir_t   *dir   = current_page_dir( );
+	page_table_t *table = page_current_table_entry( dirent );
+
+	if ( dir[dirent] ){
+		if ( table[tableent] ){
+			return (void *)(table[tableent] & ~PAGE_ARCH_ALL_FLAGS);
+		}
+	}
+
+	debug_printf( "warning: have vaddress %p without phys. page\n", vaddress );
+
+	return NULL;
+}
+
 void page_fault_handler( interrupt_frame_t *frame ){
 	uint32_t cr_2;
 
@@ -130,7 +153,7 @@ void *map_page( unsigned perms, void *vaddress ){
 	unsigned tableent = page_table_entry( vaddress );
 
 	page_dir_t *dir     = current_page_dir( );
-	page_table_t *table = (void *)(0xffc00000 | (dirent << 12));
+	page_table_t *table = page_current_table_entry( dirent );
 
 	if ( dir[dirent] ){
 		debug_printf( "have existing page directory entry for %p at %p\n",
@@ -158,8 +181,8 @@ void unmap_page( void *vaddress ){
 	unsigned dirent   = page_dir_entry( vaddress );
 	unsigned tableent = page_table_entry( vaddress );
 
-	page_dir_t *dir     = current_page_dir( );
-	page_table_t *table = (void *)(0xffc00000 | (dirent << 12));
+	page_dir_t *dir       = current_page_dir( );
+	page_table_t *table   = page_current_table_entry( dirent );
 
 	if ( dir[dirent] ){
 		if ( table[tableent] ){
@@ -176,4 +199,36 @@ void unmap_page( void *vaddress ){
 page_dir_t *current_page_dir( void ){
 	// TODO: read cr3
 	return (page_dir_t *)0xfffff000;
+}
+
+page_dir_t *page_dir_current_phys( void ){
+	void *ret = NULL;
+
+	asm volatile ( "mov %%cr3, %0" : "=r"(ret));
+
+	return ret;
+}
+
+void set_page_dir( page_dir_t *dir ){
+	uintptr_t addr = (uintptr_t)page_phys_addr( dir );
+	addr |= PAGE_ARCH_PRESENT | PAGE_ARCH_WRITABLE;
+
+	asm volatile ( "mov %0, %%cr3" :: "r"(addr) );
+}
+
+// placed down here so that region allocations don't get used absent-mindedly
+// in physical memory allocation code, or something
+#include <c4/mm/region.h>
+
+page_dir_t *clone_page_dir( page_dir_t *dir ){
+	KASSERT( region_global_is_inited( ));
+
+	page_dir_t *newdir = region_alloc( region_get_global( ));
+	KASSERT( newdir != NULL );
+
+	for ( unsigned i = 0; i < 1024; i++ ){
+		newdir[i] = dir[i] & ~PAGE_ARCH_ACCESSED;
+	}
+
+	return newdir;
 }

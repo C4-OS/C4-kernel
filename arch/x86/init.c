@@ -109,6 +109,13 @@ void arch_init( void ){
 	init_scheduler( );
 	debug_puts( "done\n" );
 
+	debug_puts( "testing pagedir cloning...\n" );
+	debug_printf( "current page dir: %p\n", current_page_dir( ));
+	page_dir_t *foo = clone_page_dir( (void *)(0xfffff000) );
+	set_page_dir( foo );
+	debug_printf( "current page dir: %p\n", current_page_dir( ));
+	debug_puts( "if it didn't crash, it works\n" );
+
 	sched_add_thread( thread_create( test_thread_client, NULL ));
 	sched_add_thread( thread_create( test_thread_meh, NULL ));
 	sched_add_thread( thread_create( test_thread_a, NULL ));

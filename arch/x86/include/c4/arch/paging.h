@@ -10,6 +10,8 @@ enum {
 	PAGE_ARCH_SUPERVISOR = 1 << 2,
 	PAGE_ARCH_ACCESSED   = 1 << 5,
 	PAGE_ARCH_4MB_ENTRY  = 1 << 7,
+
+	PAGE_ARCH_ALL_FLAGS  = 0xfff,
 };
 
 typedef uint32_t page_dir_t;

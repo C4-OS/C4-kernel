@@ -2,6 +2,7 @@
 #define _C4_REGION_H 1
 #include <c4/klib/bitmap.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct region {
 	bitmap_ent_t *bitmap;
@@ -23,4 +24,6 @@ region_t *region_init_at( region_t     *region,
 
 void region_init_global( void );
 region_t *region_get_global( void );
+bool region_global_is_inited( void );
+
 #endif
