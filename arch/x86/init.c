@@ -109,17 +109,45 @@ void arch_init( void ){
 	init_scheduler( );
 	debug_puts( "done\n" );
 
-	debug_puts( "testing pagedir cloning...\n" );
-	debug_printf( "current page dir: %p\n", current_page_dir( ));
+	//debug_puts( "testing pagedir cloning...\n" );
+	//debug_printf( "current page dir: %p\n", current_page_dir( ));
+	/*
 	page_dir_t *foo = clone_page_dir( (void *)(0xfffff000) );
 	set_page_dir( foo );
-	debug_printf( "current page dir: %p\n", current_page_dir( ));
-	debug_puts( "if it didn't crash, it works\n" );
+	*/
+	//debug_printf( "current page dir: %p\n", current_page_dir( ));
+	//debug_puts( "if it didn't crash, it works\n" );
 
-	sched_add_thread( thread_create( test_thread_client, NULL ));
+	//set_page_dir( page_get_kernel_dir( ));
+	page_dir_t *foo = page_get_kernel_dir( );
+
+	//thread_t *bar = NULL; 
+	thread_t *bar = thread_create( test_thread_client, NULL );
+	bar->page_dir = foo;
+	sched_add_thread( bar );
+
+	bar = thread_create( test_thread_meh, NULL );
+	//foo = clone_page_dir( page_get_kernel_dir( ));
+	bar->page_dir = foo;
+	sched_add_thread( bar );
+
+	/*
+	foo = clone_page_dir( foo );
+	bar = thread_create( test_thread_a, NULL );
+	bar->page_dir = foo;
+	sched_add_thread( bar );
+
+	foo = clone_page_dir( foo );
+	bar = thread_create( test_thread_a, NULL );
+	bar->page_dir = foo;
+	sched_add_thread( bar );
+	*/
+
+	/*
 	sched_add_thread( thread_create( test_thread_meh, NULL ));
 	sched_add_thread( thread_create( test_thread_a, NULL ));
 	sched_add_thread( thread_create( test_thread_a, NULL ));
+	*/
 	//sched_add_thread( thread_create( test_thread_a, NULL ));
 	/*
 	sched_add_thread( thread_create( test_thread_b, NULL ));

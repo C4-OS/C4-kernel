@@ -105,16 +105,25 @@ static void *page_phys_addr( void *vaddress ){
 
 	page_dir_t   *dir   = current_page_dir( );
 	page_table_t *table = page_current_table_entry( dirent );
+	uintptr_t    ret    = 0;
 
 	if ( dir[dirent] ){
-		if ( table[tableent] ){
-			return (void *)(table[tableent] & ~PAGE_ARCH_ALL_FLAGS);
+		if ( dir[dirent] & PAGE_ARCH_4MB_ENTRY ){
+			//return (void *)(dir[dirent] | (tableent << 12));
+			ret = dir[dirent] | (tableent << 12);
+
+		} else if ( table[tableent] ){
+			ret = table[tableent];
+			//return (void *)(table[tableent] & ~PAGE_ARCH_ALL_FLAGS);
 		}
 	}
 
-	debug_printf( "warning: have vaddress %p without phys. page\n", vaddress );
+	if ( !ret ){
+		debug_printf( "warning: have vaddress %p without phys. page\n", vaddress );
+		for ( ;; );
+	}
 
-	return NULL;
+	return (void *)(ret & ~PAGE_ARCH_ACCESSED);
 }
 
 void page_fault_handler( interrupt_frame_t *frame ){
@@ -201,6 +210,10 @@ page_dir_t *current_page_dir( void ){
 	return (page_dir_t *)0xfffff000;
 }
 
+page_dir_t *page_get_kernel_dir( void ){
+	return kernel_page_dir;
+}
+
 page_dir_t *page_dir_current_phys( void ){
 	void *ret = NULL;
 
@@ -226,9 +239,12 @@ page_dir_t *clone_page_dir( page_dir_t *dir ){
 	page_dir_t *newdir = region_alloc( region_get_global( ));
 	KASSERT( newdir != NULL );
 
-	for ( unsigned i = 0; i < 1024; i++ ){
+	for ( unsigned i = 0; i < 1023; i++ ){
 		newdir[i] = dir[i] & ~PAGE_ARCH_ACCESSED;
 	}
+
+	// set up recursive mapping for the directory
+	newdir[1023] = (page_table_t)newdir;
 
 	return newdir;
 }

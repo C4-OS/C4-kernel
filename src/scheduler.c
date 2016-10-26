@@ -16,7 +16,11 @@ static void idle_thread( void *data ){
 void init_scheduler( void ){
 	memset( &sched_list, 0, sizeof(thread_list_t) );
 
-	sched_add_thread( thread_create( idle_thread, NULL ));
+	thread_t *foo = thread_create( idle_thread, NULL );
+	foo->page_dir = page_get_kernel_dir( );
+	sched_add_thread( foo );
+	debug_printf( "kernel dir at %p\n", page_get_kernel_dir() );
+	//sched_add_thread( thread_create( idle_thread, NULL ));
 
 	current_thread = NULL;
 }
@@ -35,28 +39,25 @@ static inline thread_t *next_thread( thread_t *thread ){
 }
 
 void sched_switch_thread( void ){
-	volatile thread_t *next = next_thread( current_thread );
-	volatile bool switched = false;
+	thread_t *next = next_thread( current_thread );
 
 	// TODO: move threads to a seperate 'waiting' list
 	while ( next->state != SCHED_STATE_RUNNING ){
-		next = next_thread((thread_t *)next );
+		next = next_thread( next );
 	}
 
-	if ( current_thread ){
-		THREAD_SAVE_STATE( current_thread );
-	}
-
-	if ( !switched && next != current_thread ){
-		switched = true;
-		sched_jump_to_thread((thread_t *)next );
-	}
+	sched_jump_to_thread( next );
 }
 
 void sched_jump_to_thread( thread_t *thread ){
+	thread_t *cur = current_thread;
 	current_thread = thread;
 
-	THREAD_RESTORE_STATE( thread );
+	sched_do_thread_switch( cur, thread );
+}
+
+void sched_thread_yield( void ){
+	sched_switch_thread( );
 }
 
 void sched_add_thread( thread_t *thread ){

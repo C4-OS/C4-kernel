@@ -17,6 +17,7 @@ enum {
 
 void init_scheduler( void );
 void sched_switch_thread( void );
+void sched_do_thread_switch( thread_t *cur, thread_t *next );
 void sched_jump_to_thread( thread_t *thread );
 void sched_add_thread( thread_t *thread );
 void sched_thread_exit( void );

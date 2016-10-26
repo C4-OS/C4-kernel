@@ -12,13 +12,14 @@ typedef struct thread_list {
 } thread_list_t;
 
 typedef struct thread {
+	thread_regs_t registers;
 	page_dir_t    *page_dir;
+
 	thread_t      *next;
 	thread_t      *prev;
 	thread_list_t *list;
 	void          *stack;
 
-	thread_regs_t registers;
 	message_t     message;
 
 	unsigned id;
@@ -36,5 +37,10 @@ void thread_list_insert( thread_list_t *list, thread_t *thread );
 void thread_list_remove( thread_t *thread );
 thread_t *thread_list_pop( thread_list_t *list );
 thread_t *thread_list_peek( thread_list_t *list );
+
+// implemented in arch-specific code
+void thread_set_init_state( thread_t *thread,
+                            void (*entry)(void *data),
+                            void *data );
 
 #endif

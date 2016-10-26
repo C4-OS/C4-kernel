@@ -19,6 +19,7 @@ void *map_phys_page( unsigned perm, void *vaddr, void *raddr );
 void unmap_page( void *vaddress );
 
 page_dir_t *current_page_dir( void );
+page_dir_t *page_get_kernel_dir( void );
 page_dir_t *clone_page_dir( page_dir_t *dir );
 void        set_page_dir( page_dir_t *dir );
 
