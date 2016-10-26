@@ -53,6 +53,10 @@ void sched_jump_to_thread( thread_t *thread ){
 	thread_t *cur = current_thread;
 	current_thread = thread;
 
+	if ( !cur || thread->page_dir != cur->page_dir ){
+		set_page_dir( thread->page_dir );
+	}
+
 	sched_do_thread_switch( cur, thread );
 }
 

@@ -226,6 +226,8 @@ void set_page_dir( page_dir_t *dir ){
 	uintptr_t addr = (uintptr_t)page_phys_addr( dir );
 	addr |= PAGE_ARCH_PRESENT | PAGE_ARCH_WRITABLE;
 
+	//debug_printf( "new page dir is at %p\n", addr );
+
 	asm volatile ( "mov %0, %%cr3" :: "r"(addr) );
 }
 
@@ -244,7 +246,7 @@ page_dir_t *clone_page_dir( page_dir_t *dir ){
 	}
 
 	// set up recursive mapping for the directory
-	newdir[1023] = (page_table_t)newdir;
+	newdir[1023] = (page_table_t)page_phys_addr( newdir );
 
 	return newdir;
 }
