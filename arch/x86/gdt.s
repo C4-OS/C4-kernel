@@ -12,3 +12,9 @@ load_gdt:
     SET_CODE_SELECTOR  selector(1, GDT, ring(0))
 
     ret
+
+global load_tss
+load_tss:
+    mov eax, [esp + 4]
+    ltr ax
+    ret

@@ -143,6 +143,7 @@ void arch_init( void ){
 	bar->page_dir = page_get_kernel_dir( );
 	sched_add_thread( bar );
 
+	/*
 	foo = clone_page_dir( foo );
 	bar = thread_create( test_thread_b, NULL );
 	bar->page_dir = foo;
@@ -152,6 +153,7 @@ void arch_init( void ){
 	bar = thread_create( test_thread_c, NULL );
 	bar->page_dir = foo;
 	sched_add_thread( bar );
+	*/
 
 	/*
 	sched_add_thread( thread_create( test_thread_meh, NULL ));

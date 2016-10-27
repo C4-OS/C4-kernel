@@ -22,6 +22,8 @@ enum {
 
 	SEG_DATA_WRITE    = 0x2,
 	SEG_DATA_EXPAND   = 0x4,
+
+	SEG_TASK_DESC     = 0x9,
 };
 
 enum {
@@ -50,6 +52,77 @@ typedef struct gdt_ptr {
 	uint32_t base;
 } __attribute__((packed)) gdt_ptr_t;
 
+typedef struct task_state_seg {
+	unsigned prev_task   : 16;
+	unsigned reserved_0  : 16;
+	unsigned esp_p0      : 32;
+
+	unsigned ss_p0       : 16;
+	unsigned reserved_1  : 16;
+	unsigned esp_p1      : 32;
+
+	unsigned ss_p1       : 16;
+	unsigned reserved_2  : 16;
+	unsigned esp_p2      : 32;
+
+	unsigned ss_p2       : 16;
+	unsigned reserved_3  : 16;
+
+	unsigned cr3         : 32;
+	unsigned eip         : 32;
+	unsigned eflags      : 32;
+	unsigned eax         : 32;
+	unsigned ecx         : 32;
+	unsigned edx         : 32;
+	unsigned ebx         : 32;
+	unsigned esp         : 32;
+	unsigned ebp         : 32;
+	unsigned esi         : 32;
+	unsigned edi         : 32;
+
+	unsigned es          : 16;
+	unsigned reserved_4  : 16;
+
+	unsigned cs          : 16;
+	unsigned reserved_5  : 16;
+
+	unsigned ss          : 16;
+	unsigned reserved_6  : 16;
+
+	unsigned ds          : 16;
+	unsigned reserved_7  : 16;
+
+	unsigned fs          : 16;
+	unsigned reserved_8  : 16;
+
+	unsigned gs          : 16;
+	unsigned reserved_9  : 16;
+
+	unsigned ldt         : 16;
+	unsigned reserved_10 : 16;
+
+	unsigned debug_trap  : 1;
+	unsigned reserved_11 : 15;
+
+	unsigned iomap_base  : 16;
+} __attribute__((packed)) task_seg_t;
+
+typedef struct task_state_desc {
+	unsigned limit_low   : 16;
+	unsigned base_low    : 24;
+
+	unsigned type        : 4;
+
+	unsigned always_0a   : 1;
+	unsigned priv_level  : 2;
+	unsigned present     : 1;
+	unsigned limit_high  : 4;
+	unsigned available   : 1;
+	unsigned always_0b   : 2;
+	unsigned granularity : 1;
+	unsigned base_high   : 8;
+} __attribute__((packed)) task_state_desc_t;
+
 // C implementation of segment selector macro in gdt.s
 static inline uint16_t selector( unsigned index, unsigned table, unsigned priv )
 {
@@ -63,5 +136,6 @@ static inline unsigned ring(unsigned n){
 
 void init_segment_descs( void );
 void load_gdt( void *ptr );
+void load_tss( uint32_t seg );
 
 #endif
