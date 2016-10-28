@@ -14,13 +14,10 @@ static void idle_thread( void *data ){
 }
 
 void init_scheduler( void ){
-	memset( &sched_list, 0, sizeof(thread_list_t) );
+	page_dir_t *dir = page_get_kernel_dir( );
 
-	thread_t *foo = thread_create( idle_thread, NULL );
-	foo->page_dir = page_get_kernel_dir( );
-	sched_add_thread( foo );
-	debug_printf( "kernel dir at %p\n", page_get_kernel_dir() );
-	//sched_add_thread( thread_create( idle_thread, NULL ));
+	memset( &sched_list, 0, sizeof(thread_list_t) );
+	sched_add_thread( thread_create( idle_thread, NULL, dir ));
 
 	current_thread = NULL;
 }

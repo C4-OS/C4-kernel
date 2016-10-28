@@ -17,13 +17,14 @@ void init_threading( void ){
 	}
 }
 
-thread_t *thread_create( void (*entry)(void *data), void *data ){
+thread_t *thread_create( void (*entry)(void *), void *data, page_dir_t *dir ){
 	thread_t *ret = slab_alloc( &thread_slab );
 
 	thread_set_init_state( ret, entry, data );
 
-	ret->id      = ++thread_counter;
-	ret->task_id = 1;
+	ret->id       = ++thread_counter;
+	ret->task_id  = 1;
+	ret->page_dir = dir;
 
 	return ret;
 }

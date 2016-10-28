@@ -30,7 +30,7 @@ typedef struct thread {
 } thread_t;
 
 void init_threading( void );
-thread_t *thread_create( void (*entry)(void *data), void *data );
+thread_t *thread_create( void (*entry)(void *), void *data, page_dir_t *dir );
 void thread_destroy( thread_t *thread );
 
 void thread_list_insert( thread_list_t *list, thread_t *thread );
