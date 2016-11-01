@@ -22,7 +22,7 @@ static inline void define_descriptor( segment_desc_t *desc,
 	desc->is_data     = true;
 	desc->is_longmode = false;
 	desc->type        = type;
-	desc->priv_level  = 0;
+	desc->priv_level  = privilege;
 };
 
 static inline void define_task_descriptor( task_state_desc_t *desc,
@@ -42,7 +42,10 @@ static inline void define_task_descriptor( task_state_desc_t *desc,
 }
 
 static inline void init_task_segment( task_seg_t *seg ){
-	seg->ss_p0 = selector( 2, SEG_TABLE_GDT, ring(0) );
+	static unsigned kernel_stack[1024];
+
+	seg->ss_p0  = selector( 2, SEG_TABLE_GDT, ring(0) );
+	seg->esp_p0 = (uint32_t)(kernel_stack + 1022);
 
 	seg->cs = selector( 3, SEG_TABLE_GDT, ring(3) );
 	seg->ds = selector( 4, SEG_TABLE_GDT, ring(3) );
@@ -54,7 +57,7 @@ void init_segment_descs( void ){
 	static segment_desc_t descripts[6];
     static task_seg_t     task_seg;
 
-	memset( &descripts, 0, sizeof( segment_desc_t[4] ));
+	memset( &descripts, 0, sizeof( segment_desc_t[6] ));
     memset( &task_seg,  0, sizeof( task_seg ));
 
 	define_descriptor( descripts + 1, 0x0, 0xfffff,

@@ -138,4 +138,6 @@ void init_segment_descs( void );
 void load_gdt( void *ptr );
 void load_tss( uint32_t seg );
 
+void set_user_stack( void *addr );
+
 #endif

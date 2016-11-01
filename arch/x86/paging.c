@@ -127,13 +127,19 @@ static void *page_phys_addr( void *vaddress ){
 }
 
 void page_fault_handler( interrupt_frame_t *frame ){
+	unsigned err = frame->error_num;
 	uint32_t cr_2;
 
 	asm volatile ( "mov %%cr2, %0" : "=r"(cr_2));
 
 	debug_printf( "=== page fault! ===\n" );
-	debug_printf( "=== error code: 0b%b ===\n", frame->error_num );
 	debug_printf( "=== fault address: %p\n", cr_2 );
+	debug_printf( "=== error code: 0b%b ===\n", frame->error_num );
+	debug_printf( "=== (%s, %s, %s) ===\n",
+		(err & PAGE_ARCH_PRESENT)?    "present"   : "not present",
+		(err & PAGE_ARCH_SUPERVISOR)? "user mode" : "supervisor",
+		(err & PAGE_ARCH_WRITABLE)?   "write"     : "read"
+	);
 
 	interrupt_print_frame( frame );
 
@@ -148,7 +154,7 @@ void init_paging( void ){
 		low_virt_to_phys((uintptr_t)kernel_page_dir)
 		| PAGE_ARCH_PRESENT
 		| PAGE_ARCH_WRITABLE
-		| PAGE_ARCH_SUPERVISOR
+		//| PAGE_ARCH_SUPERVISOR
 		;
 
 	register_interrupt( INTERRUPT_PAGE_FAULT, page_fault_handler );
@@ -172,7 +178,8 @@ void *map_page( unsigned perms, void *vaddress ){
 		dir[dirent] =
 			(page_table_t)add_page_flags(
 				alloc_phys_page( ),
-				PAGE_ARCH_PRESENT | PAGE_ARCH_WRITABLE );
+				//PAGE_ARCH_PRESENT | PAGE_ARCH_WRITABLE );
+				PAGE_WRITE );
 
 		debug_printf( "do not have a directory entry for %p, mapped %p\n",
 			  vaddress, dir[dirent] );

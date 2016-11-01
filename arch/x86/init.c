@@ -79,6 +79,38 @@ void test_thread_c( void *foo ){
 	}
 }
 
+void meh( void ){
+	while ( true ){
+		//asm volatile( "int $0x80" );
+		;;
+	}
+}
+
+extern void switch_to_usermode( void * );
+
+void try_user_stuff( void *foo ){
+	//switch_to_usermode( );
+
+	void (*func)(void);
+	func = map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
+
+	void *new_stack = map_page( PAGE_READ | PAGE_WRITE, (void *)0xbfff0000 );
+	void *old_stack;
+
+	new_stack = (void *)((uintptr_t)new_stack + (0x200));
+
+	debug_printf( "func: %p, stack: %p\n", func, new_stack );
+	debug_printf( "sizeof: %u\n", sizeof(gdt_ptr_t));
+	memcpy( func, meh, 256 );
+
+	asm volatile ( "mov %%esp, %0" : "=r"(old_stack));
+	asm volatile ( "mov %0, %%esp" :: "r"(new_stack));
+	//asm volatile ( "add $0xffc, %esp" );
+	switch_to_usermode( func );
+
+	//func();
+}
+
 void arch_init( void ){
 	debug_puts( ">> Booting C4 kernel\n" );
 	debug_puts( "Initializing GDT... " );
@@ -135,8 +167,10 @@ void arch_init( void ){
 	*/
 
 	register_interrupt( INTERRUPT_TIMER, timer_handler );
+	//test_thread_a( NULL );
+	try_user_stuff( NULL );
 
-	asm volatile ( "sti" );
+	//asm volatile ( "sti" );
 
 	for ( ;; );
 }

@@ -21,7 +21,7 @@ BITS 32
         cli
         ;; TODO: figure out if this is really right, error code
         ;; doesn't seem to be pushed when it should be?
-        push dword 0
+        ;push dword 0
         push dword %1
         jmp isr_common
 %endmacro
@@ -83,7 +83,7 @@ irq_common:
     pop eax
 
     popa
-    add esp, 8
+    add esp, 4
     sti
     iret
 
