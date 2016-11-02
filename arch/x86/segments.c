@@ -45,7 +45,7 @@ static inline void init_task_segment( task_seg_t *seg ){
 	static unsigned kernel_stack[1024];
 
 	seg->ss_p0  = selector( 2, SEG_TABLE_GDT, ring(0) );
-	seg->esp_p0 = (uint32_t)(kernel_stack + 1022);
+	seg->esp_p0 = (uint32_t)(kernel_stack + 1023);
 
 	seg->cs = selector( 3, SEG_TABLE_GDT, ring(3) );
 	seg->ds = selector( 4, SEG_TABLE_GDT, ring(3) );

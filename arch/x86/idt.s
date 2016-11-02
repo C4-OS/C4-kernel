@@ -47,18 +47,17 @@ extern isr_dispatch
 isr_common:
     pusha
 
-    ;mov ax, ds
-    ;push eax
-    ;SET_DATA_SELECTORS selector(2, GDT, ring(0))
-    push esp
+    mov esi, esp
+    mov ax, ds
+    push eax
+    push esi
+    SET_DATA_SELECTORS selector(2, GDT, ring(0))
 
     call isr_dispatch
 
-    ;pop eax
-    ;SET_DATA_SELECTORS ax
-
-    ; remove old esp value
+    pop esi
     pop eax
+    SET_DATA_SELECTORS ax
 
     popa
     add esp, 8
@@ -69,21 +68,20 @@ extern irq_dispatch
 irq_common:
     pusha
 
-    ;mov ax, ds
-    ;push eax
-    ;SET_DATA_SELECTORS selector(2, GDT, ring(0))
-    push esp
+    mov esi, esp
+    mov ax, ds
+    push eax
+    push esi
+    SET_DATA_SELECTORS selector(2, GDT, ring(0))
 
     call irq_dispatch
 
-    ;pop eax
-    ;SET_DATA_SELECTORS ax
-
-    ; remove old esp value
+    pop esi
     pop eax
+    SET_DATA_SELECTORS ax
 
     popa
-    add esp, 4
+    add esp, 8
     sti
     iret
 

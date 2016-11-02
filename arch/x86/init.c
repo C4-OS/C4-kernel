@@ -80,13 +80,17 @@ void test_thread_c( void *foo ){
 }
 
 void meh( void ){
+	volatile int a = 0;
 	while ( true ){
+		a++;
+		//volatile uint8_t *foo = (void *)0xc0000;
 		//asm volatile( "int $0x80" );
+		//*foo = 0;
 		;;
 	}
 }
 
-extern void switch_to_usermode( void * );
+extern void usermode_jump( void * );
 
 void try_user_stuff( void *foo ){
 	//switch_to_usermode( );
@@ -97,18 +101,15 @@ void try_user_stuff( void *foo ){
 	void *new_stack = map_page( PAGE_READ | PAGE_WRITE, (void *)0xbfff0000 );
 	void *old_stack;
 
-	new_stack = (void *)((uintptr_t)new_stack + (0x200));
+	new_stack = (void *)((uintptr_t)new_stack + (0xf00));
 
-	debug_printf( "func: %p, stack: %p\n", func, new_stack );
-	debug_printf( "sizeof: %u\n", sizeof(gdt_ptr_t));
+	debug_printf( "usermode: func: %p, stack: %p\n", func, new_stack );
 	memcpy( func, meh, 256 );
 
 	asm volatile ( "mov %%esp, %0" : "=r"(old_stack));
 	asm volatile ( "mov %0, %%esp" :: "r"(new_stack));
-	//asm volatile ( "add $0xffc, %esp" );
-	switch_to_usermode( func );
 
-	//func();
+	usermode_jump( func );
 }
 
 void arch_init( void ){
@@ -155,6 +156,9 @@ void arch_init( void ){
 	foo = page_get_kernel_dir( );
 	sched_add_thread( thread_create( test_thread_a, NULL, foo ));
 
+	foo = clone_page_dir( foo );
+	sched_add_thread( thread_create( try_user_stuff, NULL, foo ));
+
 	/*
 	sched_add_thread( thread_create( test_thread_meh, NULL ));
 	sched_add_thread( thread_create( test_thread_a, NULL ));
@@ -167,10 +171,8 @@ void arch_init( void ){
 	*/
 
 	register_interrupt( INTERRUPT_TIMER, timer_handler );
-	//test_thread_a( NULL );
-	try_user_stuff( NULL );
-
-	//asm volatile ( "sti" );
+	//try_user_stuff( NULL );
+	asm volatile ( "sti" );
 
 	for ( ;; );
 }

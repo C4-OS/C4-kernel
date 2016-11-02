@@ -17,9 +17,9 @@ unsigned first_free = 0;
 
 // translate generic page flags to x86-specific ones
 static inline unsigned page_flags( page_flags_t flags ){
-	return (!!(flags & PAGE_WRITE) << 1)
-	     | (!!(flags & PAGE_SUPERVISOR) << 2)
-	     | PAGE_ARCH_PRESENT;
+	return ( !!(flags & PAGE_WRITE) << 1)
+	     | (!!!(flags & PAGE_SUPERVISOR) << 2)
+	     |  PAGE_ARCH_PRESENT;
 }
 
 // converts a page in the 4MB of initial kernel space to its
