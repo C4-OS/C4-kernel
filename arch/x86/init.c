@@ -23,7 +23,7 @@ void timer_handler( interrupt_frame_t *frame ){
 		//thread_t *foo = sched_get_thread_by_id( 2 );
 
 		//debug_printf( "send message: %u \n", message_try_send( &msg, 2 ));
-		message_try_send( &msg, 2 );
+		//message_try_send( &msg, 2 );
 	}
 
 	sched_switch_thread( );
@@ -42,7 +42,7 @@ void test_thread_client( void *foo ){
 		debug_printf( "got a message: %u,  %u\n", buf.data, n++ );
 
 		if ( n % 4 == 0 ){
-			message_send( &buf, 3 );
+			//message_send( &buf, 3 );
 		}
 	}
 }
@@ -51,7 +51,7 @@ void test_thread_meh( void *foo ){
 	while ( true ){
 		message_t buf;
 
-		for ( unsigned k = 0; k < 50; k++ ){
+		for ( unsigned k = 0; k < 20; k++ ){
 			sched_thread_yield( );
 		}
 
@@ -79,23 +79,29 @@ void test_thread_c( void *foo ){
 	}
 }
 
-#define DO_SYSCALL(N, A, B, C) \
+#define DO_SYSCALL(N, A, B, C, RET) \
 	asm volatile ( " \
-		mov %0, %%eax; \
-		mov %1, %%edi; \
-		mov %2, %%esi; \
-		mov %3, %%edx; \
+		mov %1, %%eax; \
+		mov %2, %%edi; \
+		mov %3, %%esi; \
+		mov %4, %%edx; \
 		int $0x60;     \
-	" :: "g"(N), "g"(A), "g"(B), "g"(C) \
-	   : "eax", "edi", "esi", "edx" );
+		mov %%eax, %0  \
+	" : "=r"(RET) \
+	  : "g"(N), "g"(A), "g"(B), "g"(C) \
+	  : "eax", "edi", "esi", "edx" );
 
 #include <c4/syscall.h>
 
 void meh( void ){
-	volatile int a = 0;
+	message_t msg;
+	int a = 0;
+	int ret = 0;
+
 	while ( true ){
 		a++;
-		DO_SYSCALL( SYSCALL_SEND, a, a * 2, a * a );
+		DO_SYSCALL( SYSCALL_RECIEVE, &msg, 0, 0, ret );
+		DO_SYSCALL( SYSCALL_SEND,    &msg, 2, 0, ret );
 	}
 }
 
@@ -126,6 +132,10 @@ void keyboard_handler( interrupt_frame_t *frame ){
 
 	debug_printf( "ps2 keyboard: got scancode %u (%s)\n",
 		scancode, key_up? "release" : "press" );
+
+	message_t msg = { scancode };
+
+	message_try_send( &msg, 6 );
 }
 
 /*
