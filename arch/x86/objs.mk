@@ -11,3 +11,4 @@ k-obj += arch/x86/idt.o
 k-obj += arch/x86/thread.o
 k-obj += arch/x86/scheduler.o
 k-obj += arch/x86/ringswitch.o
+k-obj += arch/x86/syscall.o

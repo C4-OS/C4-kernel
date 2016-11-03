@@ -79,22 +79,29 @@ void test_thread_c( void *foo ){
 	}
 }
 
+#define DO_SYSCALL(N, A, B, C) \
+	asm volatile ( " \
+		mov %0, %%eax; \
+		mov %1, %%edi; \
+		mov %2, %%esi; \
+		mov %3, %%edx; \
+		int $0x60;     \
+	" :: "g"(N), "g"(A), "g"(B), "g"(C) \
+	   : "eax", "edi", "esi", "edx" );
+
+#include <c4/syscall.h>
+
 void meh( void ){
 	volatile int a = 0;
 	while ( true ){
 		a++;
-		//volatile uint8_t *foo = (void *)0xc0000;
-		//asm volatile( "int $0x80" );
-		//*foo = 0;
-		;;
+		DO_SYSCALL( SYSCALL_SEND, a, a * 2, a * a );
 	}
 }
 
 extern void usermode_jump( void * );
 
 void try_user_stuff( void *foo ){
-	//switch_to_usermode( );
-
 	void (*func)(void);
 	func = map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
 
@@ -120,6 +127,12 @@ void keyboard_handler( interrupt_frame_t *frame ){
 	debug_printf( "ps2 keyboard: got scancode %u (%s)\n",
 		scancode, key_up? "release" : "press" );
 }
+
+/*
+void syscall_handler( interrupt_frame_t *frame ){
+	debug_printf( "got syscall %u man\n", frame->eax );
+}
+*/
 
 void arch_init( void ){
 	debug_puts( ">> Booting C4 kernel\n" );
@@ -181,7 +194,7 @@ void arch_init( void ){
 
 	register_interrupt( INTERRUPT_TIMER,    timer_handler );
 	register_interrupt( INTERRUPT_KEYBOARD, keyboard_handler );
-	//try_user_stuff( NULL );
+
 	asm volatile ( "sti" );
 
 	for ( ;; );

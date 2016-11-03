@@ -37,7 +37,10 @@ enum {
 
 	// remapped IRQ vectors, see pic.{c,h}
 	INTERRUPT_TIMER    = 0x20,
-	INTERRUPT_KEYBOARD = 0x21
+	INTERRUPT_KEYBOARD = 0x21,
+
+	// user syscall interrupt
+	INTERRUPT_SYSCALL  = 0x60,
 };
 
 typedef struct interrupt_gate {

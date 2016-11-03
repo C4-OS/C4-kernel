@@ -1,5 +1,6 @@
 #include <c4/arch/interrupts.h>
 #include <c4/arch/segments.h>
+#include <c4/arch/syscall.h>
 #include <c4/klib/string.h>
 #include <c4/debug.h>
 #include <stdbool.h>
@@ -87,9 +88,16 @@ void init_interrupts( void ){
 		define_intr_descript( intr_table + i, stubs[i], ring(0) );
 	}
 
+	// define the user syscall interrupt descriptor, overwriting the
+	// descriptor set above
+	define_intr_descript( intr_table + INTERRUPT_SYSCALL,
+	                      stubs[INTERRUPT_SYSCALL],
+	                      ring(3) );
+
 	register_interrupt( INTERRUPT_DEBUG,        test_handler );
 	register_interrupt( INTERRUPT_GEN_PROTECT,  gen_protect_fault );
 	register_interrupt( INTERRUPT_DOUBLE_FAULT, double_fault_handler );
+	register_interrupt( INTERRUPT_SYSCALL,      syscall_handler );
 
 	idtr.base  = (uint32_t)intr_table;
 	idtr.limit = sizeof(interrupt_gate_t[256]) - 1;
