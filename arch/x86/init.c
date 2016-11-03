@@ -112,6 +112,15 @@ void try_user_stuff( void *foo ){
 	usermode_jump( func );
 }
 
+void keyboard_handler( interrupt_frame_t *frame ){
+	unsigned scancode = inb( 0x60 );
+	bool key_up = !!(scancode & 0x80);
+	scancode &= ~0x80;
+
+	debug_printf( "ps2 keyboard: got scancode %u (%s)\n",
+		scancode, key_up? "release" : "press" );
+}
+
 void arch_init( void ){
 	debug_puts( ">> Booting C4 kernel\n" );
 	debug_puts( "Initializing GDT... " );
@@ -170,7 +179,8 @@ void arch_init( void ){
 	sched_add_thread( thread_create( test_thread_c, NULL ));
 	*/
 
-	register_interrupt( INTERRUPT_TIMER, timer_handler );
+	register_interrupt( INTERRUPT_TIMER,    timer_handler );
+	register_interrupt( INTERRUPT_KEYBOARD, keyboard_handler );
 	//try_user_stuff( NULL );
 	asm volatile ( "sti" );
 
