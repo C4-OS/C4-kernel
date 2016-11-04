@@ -19,7 +19,7 @@ void timer_handler( interrupt_frame_t *frame ){
 	static unsigned n = 0;
 
 	if ( (++n % 2) == 0 ){
-		message_t msg = { n };
+		message_t msg = { .data = { n }};
 		//thread_t *foo = sched_get_thread_by_id( 2 );
 
 		//debug_printf( "send message: %u \n", message_try_send( &msg, 2 ));
@@ -39,7 +39,8 @@ void test_thread_client( void *foo ){
 		//debug_printf( "sup man\n"j);
 		message_recieve( &buf );
 
-		debug_printf( "got a message: %u,  %u\n", buf.data, n++ );
+		debug_printf( "got a message: %u, type: 0x%x\n",
+		              buf.data[0], buf.type );
 
 		if ( n % 4 == 0 ){
 			//message_send( &buf, 3 );
@@ -133,16 +134,17 @@ void keyboard_handler( interrupt_frame_t *frame ){
 	debug_printf( "ps2 keyboard: got scancode %u (%s)\n",
 		scancode, key_up? "release" : "press" );
 
-	message_t msg = { scancode };
+	message_t msg = {
+		//.type = 0xbeef,
+		.type = MESSAGE_TYPE_DEBUG_PRINT,
+		.data = { scancode, key_up },
+	};
 
 	message_try_send( &msg, 6 );
-}
 
-/*
-void syscall_handler( interrupt_frame_t *frame ){
-	debug_printf( "got syscall %u man\n", frame->eax );
+	msg.type = 0xbeef;
+	message_try_send( &msg, 6 );
 }
-*/
 
 void arch_init( void ){
 	debug_puts( ">> Booting C4 kernel\n" );
