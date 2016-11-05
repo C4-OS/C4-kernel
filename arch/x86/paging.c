@@ -22,12 +22,6 @@ static inline unsigned page_flags( page_flags_t flags ){
 	     |  PAGE_ARCH_PRESENT;
 }
 
-// converts a page in the 4MB of initial kernel space to its
-// corresponding physical page
-static inline uintptr_t low_virt_to_phys( uintptr_t addr ){
-	return addr - 0xc0000000;
-}
-
 static inline void *add_page_flags( void *addr, page_flags_t flags ){
 	return (void *)((uintptr_t)addr | page_flags(flags));
 }

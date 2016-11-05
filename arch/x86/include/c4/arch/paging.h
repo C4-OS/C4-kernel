@@ -31,6 +31,18 @@ static inline unsigned page_table_entry( void *vaddress ){
 	return (temp >> 12) & 0x3ff;
 }
 
+// converts a page in the 4MB of initial kernel space to its
+// corresponding physical page
+static inline uintptr_t low_virt_to_phys( uintptr_t addr ){
+	return addr - 0xc0000000;
+}
+
+// inverse of the above, convert an address in the first 4MB of memory
+// to the corresponding identity mapped virtual address
+static inline uintptr_t low_phys_to_virt( uintptr_t addr ){
+	return addr + 0xc0000000;
+}
+
 void init_paging( void );
 
 #endif

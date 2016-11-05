@@ -7,10 +7,14 @@ KERN_LD = $(CROSS)ld
 ALL_TARGETS = c4-$(ARCH)
 ALL_CLEAN   = c4-$(ARCH)
 
-include objs.mk
-
 .PHONY: all
-all: $(ALL_TARGETS)
+all: do_all
+
+include objs.mk
+include sigma0/objs.mk
+
+.PHONY: do_all
+do_all: $(ALL_TARGETS)
 
 .PHONY: clean
 clean:
@@ -18,4 +22,4 @@ clean:
 
 .PHONY: test
 test:
-	qemu-system-i386 -kernel ./c4-$(ARCH)
+	qemu-system-i386 -kernel ./c4-$(ARCH) -initrd ./c4-$(ARCH)-sigma0
