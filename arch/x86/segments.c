@@ -50,6 +50,9 @@ static inline void init_task_segment( task_seg_t *seg ){
 	seg->cs = selector( 3, SEG_TABLE_GDT, ring(3) );
 	seg->ds = selector( 4, SEG_TABLE_GDT, ring(3) );
 	seg->ss = seg->es = seg->fs = seg->gs = seg->ds;
+
+	// set no io bitmap, see 18.5 in intel sw dev manual vol. 1
+	seg->iomap_base = 0xffff;
 }
 
 void init_segment_descs( void ){
