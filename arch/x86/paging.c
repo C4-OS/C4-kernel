@@ -157,35 +157,36 @@ void init_paging( void ){
 	debug_printf( " (%p)\n", kernel_page_dir );
 }
 
-void *map_page( unsigned perms, void *vaddress ){
-	unsigned dirent   = page_dir_entry( vaddress );
-	unsigned tableent = page_table_entry( vaddress );
+void *map_page( unsigned perms, void *vaddr ){
+	void *raddr = alloc_phys_page( );
+
+	return map_phys_page( perms, vaddr, raddr );
+}
+
+void *map_phys_page( unsigned perms, void *vaddr, void *raddr ){
+	unsigned dirent   = page_dir_entry( vaddr );
+	unsigned tableent = page_table_entry( vaddr );
 
 	page_dir_t *dir     = current_page_dir( );
 	page_table_t *table = page_current_table_entry( dirent );
 
 	if ( dir[dirent] ){
 		debug_printf( "have existing page directory entry for %p at %p\n",
-		  vaddress, dir[dirent] );
+		  vaddr, dir[dirent] );
 
 	} else {
 		dir[dirent] =
-			(page_table_t)add_page_flags(
-				alloc_phys_page( ),
-				//PAGE_ARCH_PRESENT | PAGE_ARCH_WRITABLE );
-				PAGE_WRITE );
+			(page_table_t)add_page_flags( alloc_phys_page( ), PAGE_WRITE );
 
 		debug_printf( "do not have a directory entry for %p, mapped %p\n",
-			  vaddress, dir[dirent] );
+			  vaddr, dir[dirent] );
 	}
 
-	table[tableent] = (page_table_t)add_page_flags( alloc_phys_page(), perms );
+	table[tableent] = (page_table_t)add_page_flags( raddr, perms );
 	debug_printf( "mapped %p for table entry\n", table[tableent] );
 
-	return (void *)vaddress;
+	return (void *)vaddr;
 }
-
-void *map_phys_page( unsigned perm, void *vaddr, void *raddr );
 
 void unmap_page( void *vaddress ){
 	unsigned dirent   = page_dir_entry( vaddress );
