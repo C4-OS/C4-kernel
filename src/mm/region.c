@@ -52,7 +52,8 @@ static bool         initialized = false;
 
 void region_init_global( void ){
 	if ( !initialized ){
-		region_init_at( &global_region, (void*)0xc1000000, region_map,
+		//region_init_at( &global_region, (void*)0xc1000000, region_map,
+		region_init_at( &global_region, (void*)0xfd400000, region_map,
 		                32 * BITMAP_BPS,
 		                PAGE_READ | PAGE_WRITE | PAGE_SUPERVISOR );
 

@@ -1,8 +1,10 @@
 #ifndef _C4_ARCH_PAGING_H
 #define _C4_ARCH_PAGING_H 1
 #include <stdint.h>
+#include <stdbool.h>
 
-#define PAGE_SIZE 0x1000
+#define PAGE_SIZE   0x1000
+#define KERNEL_BASE 0xf0000000
 
 enum {
 	PAGE_ARCH_PRESENT    = 1 << 0,
@@ -34,13 +36,23 @@ static inline unsigned page_table_entry( void *vaddress ){
 // converts a page in the 4MB of initial kernel space to its
 // corresponding physical page
 static inline uintptr_t low_virt_to_phys( uintptr_t addr ){
-	return addr - 0xc0000000;
+	return addr - KERNEL_BASE;
 }
 
 // inverse of the above, convert an address in the first 4MB of memory
 // to the corresponding identity mapped virtual address
 static inline uintptr_t low_phys_to_virt( uintptr_t addr ){
-	return addr + 0xc0000000;
+	return addr + KERNEL_BASE;
+}
+
+static inline bool is_kernel_address( void *addr ){
+	uintptr_t temp = (uintptr_t)addr;
+
+	return temp >= KERNEL_BASE;
+}
+
+static inline bool is_user_address( void *addr ){
+	return !is_kernel_address( addr );
 }
 
 void init_paging( void );

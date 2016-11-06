@@ -8,7 +8,8 @@ FLAGS        equ MODULEALIGN | MEMINFO         ; this is the Multiboot 'flag' fi
 MAGIC        equ 0x1BADB002                    ; 'magic number' lets bootloader find the header
 CHECKSUM     equ -(MAGIC + FLAGS)              ; checksum required
 
-KERNEL_VBASE    equ 0xc0000000
+;KERNEL_VBASE    equ 0xc0000000
+KERNEL_VBASE    equ 0xfd000000
 KERNEL_PAGE_NUM equ (KERNEL_VBASE >> 22)
 STACKSIZE       equ 0x4000
 

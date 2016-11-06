@@ -1,5 +1,6 @@
-#include <c4/debug.h>
 #include <c4/klib/string.h>
+#include <c4/arch/paging.h>
+#include <c4/debug.h>
 #include <stdbool.h>
 
 enum {
@@ -19,7 +20,7 @@ typedef struct vga_state {
 } vga_state_t;
 
 static void do_scroll( void ){
-	vga_char_t *vgatext = (void *)0xc00b8000;
+	vga_char_t *vgatext = (void *)low_phys_to_virt( 0xb8000 );
 
 	for ( unsigned y = 0; y < HEIGHT; y++ ){
 		memcpy(
@@ -55,13 +56,19 @@ static void clear_screen( vga_state_t *state ){
 	memset( state->textbuf, 0, sizeof( vga_char_t[WIDTH * HEIGHT] ));
 }
 
-
 void debug_putchar( int c ){
-	static vga_state_t state = { (vga_char_t *)0xc00b8000, 0, 0 };
+	static vga_state_t state;
 	static bool initialized = false;
 
 	if ( !initialized ){
+		state = (vga_state_t){
+			.textbuf = (vga_char_t *)low_phys_to_virt( 0xb8000 ),
+			.x       = 0,
+			.y       = 0
+		};
+
 		clear_screen( &state );
+
 		initialized = true;
 	}
 
