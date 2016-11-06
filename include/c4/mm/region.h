@@ -22,7 +22,7 @@ region_t *region_init_at( region_t     *region,
                           unsigned     num_pages,
                           unsigned     page_flags );
 
-void region_init_global( void );
+void region_init_global( void *addr );
 region_t *region_get_global( void );
 bool region_global_is_inited( void );
 

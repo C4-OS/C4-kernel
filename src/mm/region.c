@@ -50,10 +50,10 @@ static bitmap_ent_t region_map[32];
 static region_t     global_region;
 static bool         initialized = false;
 
-void region_init_global( void ){
+void region_init_global( void *addr ){
 	if ( !initialized ){
 		//region_init_at( &global_region, (void*)0xc1000000, region_map,
-		region_init_at( &global_region, (void*)0xfd400000, region_map,
+		region_init_at( &global_region, addr, region_map,
 		                32 * BITMAP_BPS,
 		                PAGE_READ | PAGE_WRITE | PAGE_SUPERVISOR );
 

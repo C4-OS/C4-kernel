@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #define PAGE_SIZE   0x1000
-#define KERNEL_BASE 0xf0000000
+#define KERNEL_BASE 0xfd000000
 
 enum {
 	PAGE_ARCH_PRESENT    = 1 << 0,

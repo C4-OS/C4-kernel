@@ -198,7 +198,7 @@ void arch_init( multiboot_header_t *header ){
 	debug_puts( "done\n" );
 
 	debug_puts( "Initializing kernel region... " );
-	region_init_global( );
+	region_init_global( (void *)(KERNEL_BASE + 0x400000) );
 	debug_puts( "done\n" );
 
 	debug_puts( "Initializing threading... " );
