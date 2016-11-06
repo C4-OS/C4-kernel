@@ -107,8 +107,6 @@ void meh( void ){
 	}
 }
 
-extern void usermode_jump( void * );
-
 void sigma0_load( void *foo ){
 	multiboot_module_t *module = foo;
 
@@ -122,9 +120,7 @@ void sigma0_load( void *foo ){
 	debug_printf( "usermode: func: %p, stack: %p\n", func, new_stack );
 	memcpy( func, sigma0_addr, func_size );
 
-	asm volatile ( "mov %0, %%esp" :: "r"(new_stack));
-
-	usermode_jump( func );
+	usermode_jump( func, new_stack );
 }
 
 void keyboard_handler( interrupt_frame_t *frame ){

@@ -38,9 +38,11 @@ void thread_list_remove( thread_t *thread );
 thread_t *thread_list_pop( thread_list_t *list );
 thread_t *thread_list_peek( thread_list_t *list );
 
-// implemented in arch-specific code
+// functions below are implemented in arch-specific code
 void thread_set_init_state( thread_t *thread,
                             void (*entry)(void *data),
                             void *data );
+
+void usermode_jump( void *entry, void *stack );
 
 #endif
