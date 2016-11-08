@@ -11,6 +11,9 @@
 GDT: equ 0
 LDT: equ 1
 
+; some eflags bits
+EFLAGS_ENABLE_INTERRUPTS equ 0x200
+
 %macro SET_DATA_SELECTORS 1+
     mov ax, %1
     mov ds, ax

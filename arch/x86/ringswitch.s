@@ -19,7 +19,12 @@ usermode_jump:
     mov eax, [ebp + 12]                    ;; esp, second argument on stack
     push dword selector( 4, GDT, ring(3) ) ;; ss
     push dword eax                         ;; esp
+
     pushf                                  ;; eflags
+    pop eax                                ;; enable interrupts
+    or eax, EFLAGS_ENABLE_INTERRUPTS
+    push eax
+
     push dword selector( 3, GDT, ring(3) ) ;; cs
     mov eax, [ebp + 8]                     ;; eip, from first argument on stack
     push dword eax

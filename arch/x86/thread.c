@@ -1,5 +1,7 @@
 #include <c4/arch/thread.h>
 #include <c4/thread.h>
+#include <c4/debug.h>
+#include <c4/common.h>
 #include <c4/klib/string.h>
 #include <c4/mm/region.h>
 #include <c4/scheduler.h>
@@ -13,6 +15,9 @@ void thread_set_init_state( thread_t *thread,
 	memset( thread, 0, sizeof( thread_t ));
 
 	uint32_t *new_stack = stack;
+	uint8_t *kern_stack = region_alloc( region_get_global( ));
+
+	KASSERT( kern_stack != NULL );
 
 	// argument for entry function
 	*(--new_stack) = (uint32_t)data;
@@ -22,6 +27,7 @@ void thread_set_init_state( thread_t *thread,
 	*(--new_stack) = (uint32_t)sched_thread_exit;
 
 	thread->stack         = new_stack;
+	thread->kernel_stack  = kern_stack + PAGE_SIZE;
 	thread->registers.esp = (uint32_t)new_stack;
 	thread->registers.eip = (uint32_t)entry;
 	thread->registers.do_user_switch = !!(flags & THREAD_FLAG_USER);

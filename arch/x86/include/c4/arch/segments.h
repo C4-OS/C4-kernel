@@ -139,5 +139,7 @@ void load_gdt( void *ptr );
 void load_tss( uint32_t seg );
 
 void set_user_stack( void *addr );
+void kernel_stack_set( void *addr );
+void *kernel_stack_get( void );
 
 #endif

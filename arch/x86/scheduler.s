@@ -12,6 +12,7 @@ global sched_do_thread_switch
 ;;        be saved in a way that can be resumed later
 ;; esp+8: next thread, which needs to be loaded
 sched_do_thread_switch:
+    cli
     push esi
     mov esi, esp
     add esi, 4

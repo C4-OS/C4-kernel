@@ -55,10 +55,19 @@ static inline void init_task_segment( task_seg_t *seg ){
 	seg->iomap_base = 0xffff;
 }
 
+static task_seg_t task_seg;
+
+void kernel_stack_set( void *addr ){
+	task_seg.esp_p0 = (uint32_t)addr;
+}
+
+void *kernel_stack_get( void ){
+	return (void *)task_seg.esp_p0;
+}
+
 void init_segment_descs( void ){
 	static gdt_ptr_t      gdt;
 	static segment_desc_t descripts[6];
-    static task_seg_t     task_seg;
 
 	memset( &descripts, 0, sizeof( segment_desc_t[6] ));
     memset( &task_seg,  0, sizeof( task_seg ));

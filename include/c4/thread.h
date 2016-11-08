@@ -25,6 +25,7 @@ typedef struct thread {
 	thread_t      *prev;
 	thread_list_t *list;
 	void          *stack;
+	void          *kernel_stack;
 
 	message_t     message;
 

@@ -1,5 +1,6 @@
 #include <c4/message.h>
 #include <c4/scheduler.h>
+#include <c4/debug.h>
 #include <c4/arch/scheduler.h>
 #include <stdbool.h>
 
@@ -25,6 +26,14 @@ void message_recieve( message_t *msg ){
 
 bool message_try_send( message_t *msg, unsigned id ){
 	thread_t *thread = sched_get_thread_by_id( id );
+
+	if ( !thread ){
+		thread_t *cur = sched_current_thread( );
+
+		debug_printf( "[ipc] invalid message target, %u -> %u, returning\n",
+		              cur->id, id );
+		return true;
+	}
 
 	if ( is_kernel_msg( msg )){
 		kernel_msg_handle_send( msg, thread );
@@ -52,8 +61,6 @@ void message_send( message_t *msg, unsigned id ){
 		sched_thread_yield( );
 	}
 }
-
-#include <c4/debug.h>
 
 static inline void kernel_msg_handle_send( message_t *msg, thread_t *target ){
 	thread_t *current = sched_current_thread( );

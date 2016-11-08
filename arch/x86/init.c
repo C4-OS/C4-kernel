@@ -110,7 +110,11 @@ void sigma0_load( multiboot_module_t *module ){
 	unsigned func_size = module->end - module->start;
 	void *sigma0_addr  = (void *)low_phys_to_virt(module->start);
 	void *func         = map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
-	void *new_stack    = map_page( PAGE_READ | PAGE_WRITE, (void*)0xbfff0000 );
+	void *new_stack    = map_page( PAGE_READ | PAGE_WRITE, (void*)0xc0000000 );
+
+	for ( uintptr_t foo = 0xbfff0000; foo < 0xbffff000; foo += PAGE_SIZE ){
+		map_page( PAGE_READ | PAGE_WRITE, (void *)foo );
+	}
 
 	new_stack = (void *)((uintptr_t)new_stack + (0xf00));
 	memcpy( func, sigma0_addr, func_size );
@@ -203,6 +207,7 @@ void arch_init( multiboot_header_t *header ){
 	sched_add_thread( thread_create_kthread( test_thread_meh, NULL ));
 	sched_add_thread( thread_create_kthread( test_thread_a, NULL ));
 	sched_add_thread( thread_create_kthread( test_thread_client, NULL ));
+	sigma0_load( sigma0 );
 
 	register_interrupt( INTERRUPT_TIMER,    timer_handler );
 	register_interrupt( INTERRUPT_KEYBOARD, keyboard_handler );
