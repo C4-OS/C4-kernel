@@ -6,21 +6,23 @@
 
 void thread_set_init_state( thread_t *thread,
                             void (*entry)(void *data),
-                            void *data )
+                            void *data,
+                            void *stack,
+                            unsigned flags )
 {
 	memset( thread, 0, sizeof( thread_t ));
 
-	uint32_t *stack = region_alloc( region_get_global() );
-	unsigned ptr    = PAGE_SIZE / sizeof(*stack);
+	uint32_t *new_stack = stack;
 
 	// argument for entry function
-	stack[--ptr] = (uint32_t)data;
+	*(--new_stack) = (uint32_t)data;
 
 	// return address, set to the exit function
 	// so threads exit when they return
-	stack[--ptr] = (uint32_t)sched_thread_exit;
+	*(--new_stack) = (uint32_t)sched_thread_exit;
 
-	thread->stack         = stack;
-	thread->registers.esp = (uint32_t)(stack + ptr);
+	thread->stack         = new_stack;
+	thread->registers.esp = (uint32_t)new_stack;
 	thread->registers.eip = (uint32_t)entry;
+	thread->registers.do_user_switch = !!(flags & THREAD_FLAG_USER);
 }

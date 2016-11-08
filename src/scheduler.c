@@ -14,10 +14,8 @@ static void idle_thread( void *data ){
 }
 
 void init_scheduler( void ){
-	page_dir_t *dir = page_get_kernel_dir( );
-
 	memset( &sched_list, 0, sizeof(thread_list_t) );
-	sched_add_thread( thread_create( idle_thread, NULL, dir ));
+	sched_add_thread( thread_create_kthread( idle_thread, NULL ));
 
 	current_thread = NULL;
 }

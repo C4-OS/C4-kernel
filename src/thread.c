@@ -2,6 +2,7 @@
 #include <c4/mm/slab.h>
 #include <c4/mm/region.h>
 #include <c4/common.h>
+#include <c4/debug.h>
 
 static slab_t thread_slab;
 static unsigned thread_counter = 0;
@@ -17,16 +18,35 @@ void init_threading( void ){
 	}
 }
 
-thread_t *thread_create( void (*entry)(void *), void *data, page_dir_t *dir ){
+thread_t *thread_create( void (*entry)(void *),
+                         void *data,
+                         page_dir_t *dir,
+                         void *stack,
+                         unsigned flags )
+{
 	thread_t *ret = slab_alloc( &thread_slab );
 
-	thread_set_init_state( ret, entry, data );
+	thread_set_init_state( ret, entry, data, stack, flags );
 
-	ret->id       = ++thread_counter;
+	ret->id       = thread_counter++;
 	ret->task_id  = 1;
 	ret->page_dir = dir;
+	ret->flags    = flags;
 
 	return ret;
+}
+
+thread_t *thread_create_kthread( void (*entry)(void *), void *data ){
+	uint8_t *stack = region_alloc( region_get_global( ));
+	stack += PAGE_SIZE;
+
+	KASSERT( stack != NULL );
+
+	return thread_create( entry,
+	                      data,
+	                      page_get_kernel_dir(),
+	                      stack,
+	                      THREAD_FLAG_NONE );
 }
 
 void thread_destroy( thread_t *thread ){

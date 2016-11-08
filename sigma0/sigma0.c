@@ -35,7 +35,7 @@ void server( void ){
 		c4_msg_send( &msg, 2 );
 
 		msg.type = MESSAGE_TYPE_DEBUG_PRINT;
-		c4_msg_send( &msg, 3 );
+		c4_msg_send( &msg, 2 );
 	}
 
 	for ( ;; );
