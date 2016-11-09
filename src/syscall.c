@@ -68,7 +68,7 @@ static int syscall_create_thread( uintptr_t user_entry,
 	debug_printf( ">> next->prev: %p\n", thread->next->prev );
 	debug_printf( ">>    current: %p\n", thread );
 
-	return 0;
+	return thread->id;
 }
 
 static int syscall_send( uintptr_t buffer, uintptr_t target, uintptr_t c ){

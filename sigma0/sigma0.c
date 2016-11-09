@@ -23,9 +23,11 @@ int c4_msg_send( message_t *buffer, unsigned target );
 int c4_msg_recieve( message_t *buffer, unsigned whom );
 int c4_create_thread( void (*entry)(void *), void *stack, void *data );
 
+#define NUM_THREADS 14
+
 struct foo {
 	int target;
-	int n;
+	int threads[NUM_THREADS];
 };
 
 void main( void ){
@@ -33,13 +35,11 @@ void main( void ){
 	struct foo thing;
 
 	thing.target  = 2;
-	thing.n       = 5;
 
-	c4_create_thread( test_thread, s,        &thing );
-	c4_create_thread( test_thread, s - 1024, &thing );
-	c4_create_thread( test_thread, s - 2048, &thing );
-	c4_create_thread( test_thread, s - 4096, &thing );
-	c4_create_thread( test_thread, s - 8192, &thing );
+	for ( unsigned i = 0; i < NUM_THREADS; i++ ){
+		thing.threads[i] = c4_create_thread( test_thread, s, &thing );
+		s -= 1024;
+	}
 
 	server( &thing );
 
@@ -52,22 +52,11 @@ void test_thread( void *data ){
 	message_t msg;
 	volatile struct foo *meh = data;
 
-	msg.type = MESSAGE_TYPE_DEBUG_PRINT;
-	msg.data[0] = 1;
-	msg.data[1] = 2;
-	msg.data[2] = 3;
-
-	c4_msg_send( &msg, meh->target );
-
 	msg.type = 0xcafe;
 
 	for (;;){
+		c4_msg_recieve( &msg, 0 );
 		c4_msg_send( &msg, meh->target );
-
-		meh->n--;
-
-		while ( meh->n > 0 );
-		while ( meh->n == 0 );
 	}
 }
 
@@ -80,10 +69,9 @@ void server( void *data ){
 		c4_msg_recieve( &msg, 0 );
 		c4_msg_send( &msg, 2 );
 
-		msg.type = MESSAGE_TYPE_DEBUG_PRINT;
-		c4_msg_send( &msg, 2 );
-
-		meh->n = 5;
+		for ( unsigned i = 0; i < NUM_THREADS; i++ ){
+			c4_msg_send( &msg, meh->threads[i] );
+		}
 	}
 
 	for ( ;; );
