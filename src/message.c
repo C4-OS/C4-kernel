@@ -26,15 +26,15 @@ void message_recieve( message_t *msg ){
 
 bool message_try_send( message_t *msg, unsigned id ){
 	thread_t *thread = sched_get_thread_by_id( id );
+	thread_t *cur    = sched_current_thread( );
 
 	if ( !thread ){
-		thread_t *cur = sched_current_thread( );
-
 		debug_printf( "[ipc] invalid message target, %u -> %u, returning\n",
 		              cur->id, id );
 		return true;
 	}
 
+	// handle kernel interface messages
 	if ( is_kernel_msg( msg )){
 		kernel_msg_handle_send( msg, thread );
 
@@ -42,6 +42,9 @@ bool message_try_send( message_t *msg, unsigned id ){
 			return true;
 		}
 	}
+
+	// set sender field
+	msg->sender = cur->id;
 
 	if ( thread->state == SCHED_STATE_WAITING 
 	   && (thread->flags & SCHED_FLAG_PENDING_MSG) == 0 )

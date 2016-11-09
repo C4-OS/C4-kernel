@@ -30,8 +30,8 @@ void test_thread_client( void *foo ){
 		//debug_printf( "sup man\n"j);
 		message_recieve( &buf );
 
-		debug_printf( "got a message: %u, type: 0x%x\n",
-		              buf.data[0], buf.type );
+		debug_printf( "got a message from %u: %u, type: 0x%x\n",
+		              buf.sender, buf.data[0], buf.type );
 
 		if ( n % 4 == 0 ){
 			//message_send( &buf, 3 );
