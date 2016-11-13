@@ -37,8 +37,12 @@ void main( void ){
 	thing.target  = 2;
 
 	for ( unsigned i = 0; i < NUM_THREADS; i++ ){
+		message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
+
 		thing.threads[i] = c4_create_thread( test_thread, s, &thing );
 		s -= 1024;
+
+		c4_msg_send( &start, thing.threads[i] );
 	}
 
 	server( &thing );
@@ -62,15 +66,34 @@ void test_thread( void *data ){
 
 void server( void *data ){
 	message_t msg;
-
 	volatile struct foo *meh = data;
+	bool stopped = false;
+	bool do_send = false;
 
 	while ( true ){
 		c4_msg_recieve( &msg, 0 );
 		c4_msg_send( &msg, 2 );
 
-		for ( unsigned i = 0; i < NUM_THREADS; i++ ){
-			c4_msg_send( &msg, meh->threads[i] );
+		do_send = false;
+
+		if ( !stopped && msg.data[0] == 31 /* 's' */ ) {
+			msg.type = MESSAGE_TYPE_STOP;
+			stopped = true;
+			do_send = true;
+
+		} else if ( stopped && msg.data[0] == 46 /* 'c' */ ){
+			msg.type = MESSAGE_TYPE_CONTINUE;
+			stopped = false;
+			do_send = true;
+
+		} else if ( !stopped ){
+			do_send = true;
+		}
+
+		if ( do_send ){
+			for ( unsigned i = 0; i < NUM_THREADS; i++ ){
+				c4_msg_send( &msg, meh->threads[i] );
+			}
 		}
 	}
 

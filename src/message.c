@@ -8,8 +8,8 @@ static inline bool is_kernel_msg( message_t *msg ){
 	return msg->type < MESSAGE_TYPE_END_RESERVED;
 }
 
-static inline void kernel_msg_handle_send( message_t *msg, thread_t *target );
-static inline void kernel_msg_handle_recieve( message_t *msg );
+static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target );
+static inline bool kernel_msg_handle_recieve( message_t *msg );
 
 void message_recieve( message_t *msg ){
 	volatile thread_t *cur = sched_current_thread( );
@@ -36,9 +36,9 @@ bool message_try_send( message_t *msg, unsigned id ){
 
 	// handle kernel interface messages
 	if ( is_kernel_msg( msg )){
-		kernel_msg_handle_send( msg, thread );
+		bool return_early = kernel_msg_handle_send( msg, thread );
 
-		if ( msg->type == MESSAGE_TYPE_DEBUG_PRINT ){
+		if ( return_early ){
 			return true;
 		}
 	}
@@ -65,10 +65,11 @@ void message_send( message_t *msg, unsigned id ){
 	}
 }
 
-static inline void kernel_msg_handle_send( message_t *msg, thread_t *target ){
+static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 	thread_t *current = sched_current_thread( );
 
 	switch ( msg->type ){
+		// intercepts message and prints, without sending to the reciever
 		case MESSAGE_TYPE_DEBUG_PRINT:
 			debug_printf(
 				"[ipc] debug message, from thread %u (task %u)\n"
@@ -79,11 +80,26 @@ static inline void kernel_msg_handle_send( message_t *msg, thread_t *target ){
 				msg->data[0], msg->data[1], msg->data[2] );
 			break;
 
+		// handle thread control messages
+		// TODO: once capabilities are implemented, check for proper
+		//       capabilities to send these
+		case MESSAGE_TYPE_CONTINUE:
+			debug_printf( "continuing thread %u\n", target->id );
+			sched_thread_continue( target );
+			break;
+
+		case MESSAGE_TYPE_STOP:
+			debug_printf( "stopping thread %u\n", target->id );
+			sched_thread_stop( target );
+			break;
+
 		default:
 			break;
 	}
+
+	return true;
 }
 
-static inline void kernel_msg_handle_recieve( message_t *msg ){
-
+static inline bool kernel_msg_handle_recieve( message_t *msg ){
+	return true;
 }

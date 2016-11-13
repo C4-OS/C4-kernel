@@ -58,6 +58,7 @@ static int syscall_create_thread( uintptr_t user_entry,
 	thread = thread_create( entry, data, cur->page_dir,
 	                        stack, THREAD_FLAG_USER );
 
+	sched_thread_stop( thread );
 	sched_add_thread( thread );
 
 	debug_printf( ">> created user thread %u\n", thread->id );

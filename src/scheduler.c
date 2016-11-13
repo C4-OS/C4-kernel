@@ -80,6 +80,14 @@ void sched_add_thread( thread_t *thread ){
 	thread_list_insert( &sched_list, thread );
 }
 
+void sched_thread_continue( thread_t *thread ){
+	thread->state = SCHED_STATE_RUNNING;
+}
+
+void sched_thread_stop( thread_t *thread ){
+	thread->state = SCHED_STATE_STOPPED;
+}
+
 void sched_thread_exit( void ){
 	debug_printf( "got to exit, thread %u\n", current_thread->id );
 

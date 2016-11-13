@@ -11,6 +11,7 @@ enum {
 
 enum {
 	SCHED_STATE_RUNNING,
+	SCHED_STATE_STOPPED,
 	SCHED_STATE_WAITING,
 	SCHED_STATE_SENDING,
 };
@@ -20,6 +21,9 @@ void sched_switch_thread( void );
 void sched_do_thread_switch( thread_t *cur, thread_t *next );
 void sched_jump_to_thread( thread_t *thread );
 void sched_add_thread( thread_t *thread );
+
+void sched_thread_continue( thread_t *thread );
+void sched_thread_stop( thread_t *thread );
 void sched_thread_exit( void );
 
 thread_t *sched_get_thread_by_id( unsigned id );
