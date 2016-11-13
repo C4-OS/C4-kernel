@@ -1,44 +1,32 @@
-#include <c4/syscall.h>
-#include <c4/message.h>
-#include <stdbool.h>
+#include <sigma0/sigma0.h>
 
-#define NULL ((void *)0)
-
-#define DO_SYSCALL(N, A, B, C, RET) \
-	asm volatile ( " \
-		mov %1, %%eax; \
-		mov %2, %%edi; \
-		mov %3, %%esi; \
-		mov %4, %%edx; \
-		int $0x60;     \
-		mov %%eax, %0  \
-	" : "=r"(RET) \
-	  : "g"(N), "g"(A), "g"(B), "g"(C) \
-	  : "eax", "edi", "esi", "edx" );
-
-void main( void );
-void server( void * );
 void test_thread( void *unused );
+
+/*
 int c4_msg_send( message_t *buffer, unsigned target );
 int c4_msg_recieve( message_t *buffer, unsigned whom );
 int c4_create_thread( void (*entry)(void *), void *stack, void *data );
+*/
 
-#define NUM_THREADS 14
+#define NUM_THREADS 10
 
 struct foo {
 	int target;
 	int threads[NUM_THREADS];
+	int display;
 };
 
 void main( void ){
 	unsigned *s = (void *)0xbfffe000;
 	struct foo thing;
+	message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
 
 	thing.target  = 2;
+	thing.display = c4_create_thread( display_thread, s, NULL );
+	c4_msg_send( &start, thing.display );
+	s -= 1024;
 
 	for ( unsigned i = 0; i < NUM_THREADS; i++ ){
-		message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
-
 		thing.threads[i] = c4_create_thread( test_thread, s, &thing );
 		s -= 1024;
 
@@ -64,15 +52,37 @@ void test_thread( void *data ){
 	}
 }
 
+void display_prompt( struct foo *thing ){
+	message_t msg;
+	char *prompt = "asdf foo bar baz > ";
+
+	for ( unsigned i = 0; prompt[i]; i++ ){
+		msg.data[0] = prompt[i];
+		msg.type    = 0xbabe;
+
+		c4_msg_send( &msg, thing->display );
+	}
+}
+
 void server( void *data ){
 	message_t msg;
-	volatile struct foo *meh = data;
+	struct foo *meh = data;
 	bool stopped = false;
 	bool do_send = false;
 
+	display_prompt( meh );
+
 	while ( true ){
 		c4_msg_recieve( &msg, 0 );
-		c4_msg_send( &msg, 2 );
+		//c4_msg_send( &msg, 2 );
+
+		if ( msg.data[1] == 0 ){
+			c4_msg_send( &msg, meh->display );
+
+			if ( msg.data[0] == 28 ){
+				display_prompt( meh );
+			}
+		}
 
 		do_send = false;
 

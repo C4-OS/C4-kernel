@@ -116,6 +116,8 @@ void sigma0_load( multiboot_module_t *module ){
 		map_page( PAGE_READ | PAGE_WRITE, (void *)foo );
 	}
 
+	map_phys_page( PAGE_READ | PAGE_WRITE, (void *)0xb8000, (void *)0xb8000 );
+
 	new_stack = (void *)((uintptr_t)new_stack + (0xf00));
 	memcpy( func, sigma0_addr, func_size );
 

@@ -1,6 +1,7 @@
-SIGMA0_CFLAGS = $(K_CFLAGS) -fpie -fpic
+SIGMA0_INCLUDE = ./sigma0/include/
+SIGMA0_CFLAGS  = $(K_CFLAGS) -fpie -fpic -I$(SIGMA0_INCLUDE)
 
-sig-objs = sigma0/sigma0.o
+sig-objs = sigma0/sigma0.o sigma0/display.o
 
 sigma0/%.o: sigma0/%.c
 	@echo CC $< -c -o $@

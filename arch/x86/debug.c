@@ -5,7 +5,7 @@
 
 enum {
 	WIDTH  = 80,
-	HEIGHT = 25,
+	HEIGHT = 15,
 };
 
 typedef struct vga_char {
@@ -22,11 +22,20 @@ typedef struct vga_state {
 static void do_scroll( void ){
 	vga_char_t *vgatext = (void *)low_phys_to_virt( 0xb8000 );
 
-	for ( unsigned y = 0; y < HEIGHT; y++ ){
+	for ( unsigned y = 1; y < HEIGHT; y++ ){
 		memcpy(
+			vgatext + WIDTH * (y - 1),
 			vgatext + WIDTH * y,
-			vgatext + WIDTH * (y + 1),
 			sizeof( vga_char_t[WIDTH] ));
+
+		memset( vgatext + WIDTH * y, 0, sizeof( vga_char_t[WIDTH] ));
+	}
+
+	for ( unsigned x = 0; x < WIDTH; x++ ){
+		vga_char_t *c = vgatext + x + WIDTH * (HEIGHT);
+
+		c->text = '=';
+		c->color = 0x7;
 	}
 }
 
@@ -59,6 +68,7 @@ static void clear_screen( vga_state_t *state ){
 void debug_putchar( int c ){
 	static vga_state_t state;
 	static bool initialized = false;
+	static bool pending_newline = false;
 
 	if ( !initialized ){
 		state = (vga_state_t){
@@ -72,9 +82,15 @@ void debug_putchar( int c ){
 		initialized = true;
 	}
 
+	if ( pending_newline ){
+		do_newline( &state );
+		pending_newline = false;
+	}
+
 	switch ( c ){
 		case '\n':
-			do_newline( &state );
+			//do_newline( &state );
+			pending_newline = true;
 			break;
 
 		case '\r':
