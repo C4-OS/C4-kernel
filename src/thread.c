@@ -38,9 +38,9 @@ thread_t *thread_create( void (*entry)(void *),
 
 thread_t *thread_create_kthread( void (*entry)(void *), void *data ){
 	uint8_t *stack = region_alloc( region_get_global( ));
-	stack += PAGE_SIZE;
 
 	KASSERT( stack != NULL );
+	stack += PAGE_SIZE;
 
 	return thread_create( entry,
 	                      data,
