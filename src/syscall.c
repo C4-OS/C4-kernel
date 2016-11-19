@@ -55,7 +55,7 @@ static int syscall_create_thread( uintptr_t user_entry,
 		return -1;
 	}
 
-	thread = thread_create( entry, data, cur->page_dir,
+	thread = thread_create( entry, data, cur->addr_space,
 	                        stack, THREAD_FLAG_USER );
 
 	sched_thread_stop( thread );

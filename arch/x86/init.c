@@ -103,9 +103,11 @@ void meh( void ){
 }
 
 void sigma0_load( multiboot_module_t *module ){
-	page_dir_t *new_pagedir = clone_page_dir( page_get_kernel_dir( ));
+	//page_dir_t *new_pagedir = clone_page_dir( page_get_kernel_dir( ));
+	addr_space_t *new_space = addr_space_clone( addr_space_kernel( ));
 
-	set_page_dir( new_pagedir );
+	//set_page_dir( new_pagedir );
+	addr_space_set( new_space );
 
 	unsigned func_size = module->end - module->start;
 	void *sigma0_addr  = (void *)low_phys_to_virt(module->start);
@@ -122,7 +124,7 @@ void sigma0_load( multiboot_module_t *module ){
 	memcpy( func, sigma0_addr, func_size );
 
 	thread_t *new_thread =
-		thread_create( func, NULL, new_pagedir, new_stack, THREAD_FLAG_USER );
+		thread_create( func, NULL, new_space, new_stack, THREAD_FLAG_USER );
 
 	set_page_dir( page_get_kernel_dir( ));
 
@@ -191,6 +193,10 @@ void arch_init( multiboot_header_t *header ){
 	region_init_global( (void *)(KERNEL_BASE + 0x400000) );
 	debug_puts( "done\n" );
 
+	debug_puts( "Initializing address space structures..." );
+	addr_space_init( );
+	debug_puts( "done\n" );
+
 	debug_puts( "Initializing threading... " );
 	init_threading( );
 	debug_puts( "done\n" );
@@ -200,8 +206,6 @@ void arch_init( multiboot_header_t *header ){
 	debug_puts( "done\n" );
 
 	multiboot_module_t *sigma0 = sigma0_find_module( header );
-
-	addr_map_t *map = addr_map_create( region_get_global( ));
 
 	if ( !sigma0 ){
 		debug_printf( "Couldn't find a sigma0 binary, can't continue...\n" );

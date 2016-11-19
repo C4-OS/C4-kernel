@@ -4,6 +4,8 @@
 
 #define MAGIC          0xabadc0de
 #define MAX_FREE_SLABS 2
+#define NO_CTOR        ((void *)0)
+#define NO_DTOR        ((void *)0)
 
 typedef struct slab slab_t;
 typedef struct slab_list slab_list_t;

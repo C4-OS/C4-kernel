@@ -3,6 +3,7 @@
 #include <c4/arch/thread.h>
 #include <c4/paging.h>
 #include <c4/message.h>
+#include <c4/mm/addrspace.h>
 
 enum {
 	THREAD_FLAG_NONE       = 0,
@@ -19,7 +20,7 @@ typedef struct thread_list {
 
 typedef struct thread {
 	thread_regs_t registers;
-	page_dir_t    *page_dir;
+	addr_space_t  *addr_space;
 
 	thread_t      *next;
 	thread_t      *prev;
@@ -39,7 +40,7 @@ typedef struct thread {
 void init_threading( void );
 thread_t *thread_create( void (*entry)(void *),
                          void *data,
-                         page_dir_t *dir,
+                         addr_space_t *space,
                          void *stack,
                          unsigned flags );
 

@@ -37,16 +37,20 @@ typedef struct addr_map {
 } addr_map_t;
 
 typedef struct addr_space {
-	//page_dir_t *pagedir;
-	unsigned *pagedir;
+	page_dir_t *page_dir;
 	addr_map_t *map;
+	region_t   *region;
 
 	unsigned references;
 } addr_space_t;
 
-addr_space_t *addr_space_create( void );
+void addr_space_init( void );
+
+addr_space_t *addr_space_clone( addr_space_t *space );
 addr_space_t *addr_space_reference( addr_space_t *space );
+addr_space_t *addr_space_kernel( void );
 void          addr_space_free( addr_space_t *space );
+void          addr_space_set( addr_space_t *space );
 
 int addr_space_map( addr_space_t *a,
                     addr_space_t *b,

@@ -51,16 +51,17 @@ void sched_jump_to_thread( thread_t *thread ){
 	thread_t *cur = current_thread;
 	current_thread = thread;
 
-	if ( !cur || thread->page_dir != cur->page_dir ){
+	if ( !cur || thread->addr_space != cur->addr_space ){
 		// XXX: cause a page fault if the address of the new page
 		//      directory isn't mapped here, so it can be mapped in
 		//      the page fault handler (and not cause a triple fault)
-		volatile char *a = (char *)thread->page_dir;
+		volatile char *a = (char *)thread->addr_space->page_dir;
 		volatile char  b = *a;
 		// and keep compiler from complaining about used variable
 		b = b;
 
-		set_page_dir( thread->page_dir );
+		//set_page_dir( thread->addr_space->page_dir );
+		addr_space_set( thread->addr_space );
 	}
 
 	// swap per-thread kernel stacks

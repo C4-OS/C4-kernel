@@ -20,7 +20,7 @@ void init_threading( void ){
 
 thread_t *thread_create( void (*entry)(void *),
                          void *data,
-                         page_dir_t *dir,
+                         addr_space_t *space,
                          void *stack,
                          unsigned flags )
 {
@@ -28,10 +28,10 @@ thread_t *thread_create( void (*entry)(void *),
 
 	thread_set_init_state( ret, entry, data, stack, flags );
 
-	ret->id       = thread_counter++;
-	ret->task_id  = 1;
-	ret->page_dir = dir;
-	ret->flags    = flags;
+	ret->id         = thread_counter++;
+	ret->task_id    = 1;
+	ret->addr_space = space;
+	ret->flags      = flags;
 
 	return ret;
 }
@@ -44,7 +44,7 @@ thread_t *thread_create_kthread( void (*entry)(void *), void *data ){
 
 	return thread_create( entry,
 	                      data,
-	                      page_get_kernel_dir(),
+	                      addr_space_reference( addr_space_kernel( )),
 	                      stack,
 	                      THREAD_FLAG_NONE );
 }

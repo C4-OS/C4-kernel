@@ -1,20 +1,89 @@
 #include <c4/mm/addrspace.h>
+#include <c4/mm/region.h>
+#include <c4/mm/slab.h>
 #include <c4/klib/string.h>
 #include <c4/debug.h>
 #include <c4/common.h>
+#include <c4/paging.h>
+
+static slab_t addr_space_slab;
+static addr_space_t *kernel_space;
+
+void addr_space_init( void ){
+	static bool initialized = false;
+
+	if ( !initialized ){
+		slab_init_at( &addr_space_slab, region_get_global( ),
+		              sizeof( addr_space_t ), NO_CTOR, NO_DTOR );
+
+		// manually initialize the kernel address space
+		kernel_space             = slab_alloc( &addr_space_slab );
+		kernel_space->page_dir   = page_get_kernel_dir( );
+		kernel_space->map        = addr_map_create( region_get_global( ));
+		kernel_space->region     = region_get_global( );
+		kernel_space->references = 1;
+
+		initialized = true;
+	}
+}
+
+addr_space_t *addr_space_clone( addr_space_t *space ){
+	addr_space_t *ret = NULL;
+
+	ret = slab_alloc( &addr_space_slab );
+	KASSERT( ret != NULL );
+
+	ret->page_dir   = clone_page_dir( space->page_dir );
+	ret->map        = addr_map_create( space->region );
+	ret->region     = space->region;
+	ret->references = 1;
+
+	KASSERT( ret->page_dir != NULL );
+	KASSERT( ret->map      != NULL );
+
+	memcpy( ret->map, space->map, sizeof( ret->map ));
+
+	return ret;
+}
+
+addr_space_t *addr_space_reference( addr_space_t *space ){
+	if ( space ){
+		space->references++;
+	}
+
+	return space;
+}
+
+addr_space_t *addr_space_kernel( void ){
+	return kernel_space;
+}
+
+void addr_space_free( addr_space_t *space ){
+	if ( space && --space->references == 0 ){
+		region_free( space->region, space->page_dir );
+		addr_map_free( space->map );
+		slab_free( &addr_space_slab, space );
+	}
+}
+
+void addr_space_set( addr_space_t *space ){
+	set_page_dir( space->page_dir );
+}
 
 addr_map_t *addr_map_create( region_t *region ){
 	addr_map_t *ret = region_alloc( region );
 
-	memset( ret, 0, sizeof( *ret ));
+	if ( ret ){
+		memset( ret, 0, sizeof( *ret ));
 
-	ret->region     = region;
-	ret->entries    = ADDR_MAP_ENTRIES_PER_PAGE;
-	ret->used       = 0;
+		ret->region     = region;
+		ret->entries    = ADDR_MAP_ENTRIES_PER_PAGE;
+		ret->used       = 0;
 
-	debug_printf( "%u\n", sizeof( addr_map_t ));
-	debug_printf( "%u\n", sizeof( ret->map ));
-	debug_printf( "%d\n", ADDR_MAP_ENTRIES_PER_PAGE );
+		debug_printf( "map size (w/ root):  %u\n", sizeof( addr_map_t ));
+		debug_printf( "map size (w/o root): %u\n", sizeof( ret->map ));
+		debug_printf( "entries per page:    %u\n", ADDR_MAP_ENTRIES_PER_PAGE );
+	}
 
 	return ret;
 }
