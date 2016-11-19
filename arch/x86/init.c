@@ -167,6 +167,8 @@ multiboot_module_t *sigma0_find_module( multiboot_header_t *header ){
 	return ret;
 }
 
+#include <c4/mm/addrspace.h>
+
 void arch_init( multiboot_header_t *header ){
 	debug_puts( ">> Booting C4 kernel\n" );
 	debug_puts( "Initializing GDT... " );
@@ -198,6 +200,8 @@ void arch_init( multiboot_header_t *header ){
 	debug_puts( "done\n" );
 
 	multiboot_module_t *sigma0 = sigma0_find_module( header );
+
+	addr_map_t *map = addr_map_create( region_get_global( ));
 
 	if ( !sigma0 ){
 		debug_printf( "Couldn't find a sigma0 binary, can't continue...\n" );
