@@ -1,7 +1,7 @@
 ENTRY (main)
 
 SECTIONS {
-	. = 0xa0000000;
+	. = 0xc0de0000;
 
 	.text ALIGN (0x1000) : {
 		*(.text.startup)

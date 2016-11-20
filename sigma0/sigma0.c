@@ -17,7 +17,7 @@ struct foo {
 };
 
 void main( void ){
-	unsigned *s = (void *)0xbfffe000;
+	unsigned *s = (void *)0xda7ef000;
 	struct foo thing;
 	message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
 
