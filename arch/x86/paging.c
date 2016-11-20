@@ -89,6 +89,22 @@ static void free_phys_page( void *addr ){
 	}
 }
 
+// this function sets a range of physical memory as used,
+// in anticipation of a future mapping there so the memory
+// doesn't get used later
+//
+// it's optimized for the bitmap structure though, might be worth
+// considering a way that would work better with eg. a tree-based
+// physical page map
+void page_reserve_phys_range( uintptr_t start, uintptr_t end ){
+	uintptr_t index     = start / PAGE_SIZE;
+	uintptr_t end_index = end   / PAGE_SIZE;
+
+	for ( ; index < end_index; index++ ){
+		bitmap_set( phys_page_bitmap, index );
+	}
+}
+
 static page_table_t *page_current_table_entry( unsigned entry ){
 	return (void *)(0xffc00000 | (entry << 12));
 }

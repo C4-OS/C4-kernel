@@ -2,6 +2,7 @@
 #ifndef _C4_PAGING_H
 #define _C4_PAGING_H 1
 #include <c4/arch/paging.h>
+#include <stdint.h>
 
 typedef enum {
 	PAGE_READ       = 1,
@@ -22,5 +23,6 @@ page_dir_t *current_page_dir( void );
 page_dir_t *page_get_kernel_dir( void );
 page_dir_t *clone_page_dir( page_dir_t *dir );
 void        set_page_dir( page_dir_t *dir );
+void        page_reserve_phys_range( uintptr_t start, uintptr_t end );
 
 #endif

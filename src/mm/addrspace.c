@@ -70,6 +70,36 @@ void addr_space_set( addr_space_t *space ){
 	set_page_dir( space->page_dir );
 }
 
+int addr_space_map( addr_space_t *a,
+                    addr_space_t *b,
+                    addr_entry_t *ent );
+
+int addr_space_grant( addr_space_t *a,
+                      addr_space_t *b,
+                      addr_entry_t *ent );
+
+int addr_space_unmap( addr_space_t *space, unsigned long address ){
+	return 0;
+}
+
+int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent ){
+	uintptr_t v_start = ent->virtual  - (ent->virtual  % PAGE_SIZE);
+	uintptr_t p_start = ent->physical - (ent->physical % PAGE_SIZE);
+
+	addr_map_insert( space->map, ent );
+	page_reserve_phys_range( p_start, p_start + ent->size * PAGE_SIZE );
+
+	for ( uintptr_t page = 0; page < ent->size * PAGE_SIZE; page += PAGE_SIZE )
+	{
+		void *v = (void *)(v_start + page);
+		void *p = (void *)(p_start + page);
+
+		map_phys_page( ent->permissions, v, p );
+	}
+
+	return 0;
+}
+
 addr_map_t *addr_map_create( region_t *region ){
 	addr_map_t *ret = region_alloc( region );
 
@@ -105,7 +135,7 @@ void addr_map_dump( addr_map_t *map ){
 		unsigned long p_end   = p_start + map->map[i].size * PAGE_SIZE;
 
 		debug_printf( "  entry %u : %x -> %x\n", i, start, end );
-		debug_printf( "           : %x -> %x\n", p_start, p_end );
+		debug_printf( "          : %x -> %x\n", p_start, p_end );
 	}
 }
 

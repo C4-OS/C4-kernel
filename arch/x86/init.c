@@ -103,24 +103,51 @@ void meh( void ){
 }
 
 void sigma0_load( multiboot_module_t *module ){
-	//page_dir_t *new_pagedir = clone_page_dir( page_get_kernel_dir( ));
 	addr_space_t *new_space = addr_space_clone( addr_space_kernel( ));
 
-	//set_page_dir( new_pagedir );
 	addr_space_set( new_space );
 
 	unsigned func_size = module->end - module->start;
 	void *sigma0_addr  = (void *)low_phys_to_virt(module->start);
-	void *func         = map_page( PAGE_READ | PAGE_WRITE, (void*)0xa0000000 );
-	void *new_stack    = map_page( PAGE_READ | PAGE_WRITE, (void*)0xc0000000 );
+	addr_entry_t ent;
 
-	for ( uintptr_t foo = 0xbfff0000; foo < 0xbffff000; foo += PAGE_SIZE ){
-		map_page( PAGE_READ | PAGE_WRITE, (void *)foo );
-	}
+	uintptr_t code_start = 0xa0000000;
+	uintptr_t code_end   = code_start + func_size +
+	                       (PAGE_SIZE - (func_size % PAGE_SIZE));
+	uintptr_t data_start = 0xbfff0000;
+	uintptr_t data_end   = 0xc0001000;
 
-	map_phys_page( PAGE_READ | PAGE_WRITE, (void *)0xb8000, (void *)0xb8000 );
+	void *func      = (void *)code_start;
+	void *new_stack = (void *)data_end;
 
-	new_stack = (void *)((uintptr_t)new_stack + (0xf00));
+	ent = (addr_entry_t){
+		.virtual     = code_start,
+		.physical    = 0x800000,
+		.size        = (code_end - code_start) / PAGE_SIZE,
+		.permissions = PAGE_READ | PAGE_WRITE,
+	};
+
+	addr_space_insert_map( new_space, &ent );
+
+	ent = (addr_entry_t){
+		.virtual     = data_start,
+		.physical    = 0x804000,
+		.size        = (data_end - data_start) / PAGE_SIZE,
+		.permissions = PAGE_READ | PAGE_WRITE,
+	};
+
+	addr_space_insert_map( new_space, &ent );
+	debug_printf( "asdf: 0x%x\n", code_end );
+
+	ent = (addr_entry_t){
+		.virtual     = 0xb8000,
+		.physical    = 0xb8000,
+		.size        = 1,
+		.permissions = PAGE_READ | PAGE_WRITE,
+	};
+
+	addr_space_insert_map( new_space, &ent );
+
 	memcpy( func, sigma0_addr, func_size );
 
 	thread_t *new_thread =
@@ -217,7 +244,6 @@ void arch_init( multiboot_header_t *header ){
 	sched_add_thread( thread_create_kthread( test_thread_meh, NULL ));
 	sched_add_thread( thread_create_kthread( test_thread_a, NULL ));
 	sched_add_thread( thread_create_kthread( test_thread_client, NULL ));
-	sigma0_load( sigma0 );
 
 	register_interrupt( INTERRUPT_TIMER,    timer_handler );
 	register_interrupt( INTERRUPT_KEYBOARD, keyboard_handler );
