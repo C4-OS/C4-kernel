@@ -1,4 +1,4 @@
-CROSS   = ./cross/bin/i586-elf-
+CROSS   = $(PWD)/cross/bin/i586-elf-
 ARCH    = x86
 KERN_CC = $(CROSS)gcc
 KERN_AS = nasm

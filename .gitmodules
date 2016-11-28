@@ -1,0 +1,3 @@
+[submodule "sigma0/miniforth"]
+	path = sigma0/miniforth
+	url = https://github.com/mushrom/miniforth.git

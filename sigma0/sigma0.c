@@ -1,20 +1,15 @@
 #include <sigma0/sigma0.h>
-
-void test_thread( void *unused );
-
-/*
-int c4_msg_send( message_t *buffer, unsigned target );
-int c4_msg_recieve( message_t *buffer, unsigned whom );
-int c4_create_thread( void (*entry)(void *), void *stack, void *data );
-*/
-
-#define NUM_THREADS 10
+#include <miniforth/miniforth.h>
 
 struct foo {
 	int target;
-	int threads[NUM_THREADS];
 	int display;
+	int forth;
 };
+
+void test_thread( void *unused );
+void forth_thread( void *sysinfo );
+void debug_print( struct foo *info, char *asdf );
 
 void main( void ){
 	unsigned *s = (void *)0xda7ef000;
@@ -23,15 +18,11 @@ void main( void ){
 
 	thing.target  = 2;
 	thing.display = c4_create_thread( display_thread, s, NULL );
-	c4_msg_send( &start, thing.display );
 	s -= 1024;
+	thing.forth   = c4_create_thread( forth_thread,   s, &thing );
 
-	for ( unsigned i = 0; i < NUM_THREADS; i++ ){
-		thing.threads[i] = c4_create_thread( test_thread, s, &thing );
-		s -= 1024;
-
-		c4_msg_send( &start, thing.threads[i] );
-	}
+	c4_msg_send( &start, thing.display );
+	c4_msg_send( &start, thing.forth );
 
 	server( &thing );
 
@@ -52,62 +43,119 @@ void test_thread( void *data ){
 	}
 }
 
-void display_prompt( struct foo *thing ){
-	message_t msg;
-	char *prompt = "asdf foo bar baz > ";
-
-	for ( unsigned i = 0; prompt[i]; i++ ){
-		msg.data[0] = prompt[i];
-		msg.type    = 0xbabe;
-
-		c4_msg_send( &msg, thing->display );
-	}
-}
+extern const char *foo;
 
 void server( void *data ){
 	message_t msg;
 	struct foo *meh = data;
-	bool stopped = false;
-	bool do_send = false;
-
-	display_prompt( meh );
 
 	while ( true ){
 		c4_msg_recieve( &msg, 0 );
-		//c4_msg_send( &msg, 2 );
 
 		if ( msg.data[1] == 0 ){
 			c4_msg_send( &msg, meh->display );
-
-			if ( msg.data[0] == 28 ){
-				display_prompt( meh );
-			}
-		}
-
-		do_send = false;
-
-		if ( !stopped && msg.data[0] == 31 /* 's' */ ) {
-			msg.type = MESSAGE_TYPE_STOP;
-			stopped = true;
-			do_send = true;
-
-		} else if ( stopped && msg.data[0] == 46 /* 'c' */ ){
-			msg.type = MESSAGE_TYPE_CONTINUE;
-			stopped = false;
-			do_send = true;
-
-		} else if ( !stopped ){
-			do_send = true;
-		}
-
-		if ( do_send ){
-			for ( unsigned i = 0; i < NUM_THREADS; i++ ){
-				c4_msg_send( &msg, meh->threads[i] );
-			}
+			c4_msg_send( &msg, meh->forth );
 		}
 	}
 
 	for ( ;; );
+}
+
+static struct foo *forth_sysinfo;
+
+static char *read_line( char *buf, unsigned n ){
+	message_t msg;
+	unsigned i = 0;
+
+	for ( i = 0; i < n - 1; i++ ){
+		c4_msg_recieve( &msg, 0 );
+		char c = foo[msg.data[0]];
+
+		buf[i] = c;
+
+		if ( c == '\n' ){
+			break;
+		}
+	}
+
+	buf[++i] = '\0';
+
+	return buf;
+}
+
+char minift_get_char( void ){
+	static char input[64];
+	static bool initialized = false;
+	static char *ptr;
+
+	if ( !initialized ){
+		for ( unsigned i = 0; i < 64; i++ ){ input[i] = 0; }
+		ptr         = input;
+		initialized = true;
+	}
+
+	while ( !*ptr ){
+		debug_print( forth_sysinfo, "miniforth > " );
+		ptr = read_line( input, 64 );
+	}
+
+	char fug[2] = { *ptr, 0 };
+
+	return *ptr++;
+}
+
+void minift_put_char( char c ){
+	message_t msg;
+
+	msg.type    = 0xbabe;
+	msg.data[0] = c;
+
+	c4_msg_send( &msg, forth_sysinfo->display );
+}
+
+void forth_thread( void *sysinfo ){
+	forth_sysinfo = sysinfo;
+
+	unsigned long data[512];
+	unsigned long calls[32];
+	unsigned long params[32];
+
+	minift_vm_t foo;
+
+	for ( ;; ){
+		minift_stack_t data_stack = {
+			.start = data,
+			.ptr   = data,
+			.end   = data + 256,
+		};
+
+		minift_stack_t call_stack = {
+			.start = calls,
+			.ptr   = calls,
+			.end   = calls + 32,
+		};
+
+		minift_stack_t param_stack = {
+			.start = params,
+			.ptr   = params,
+			.end   = params + 32,
+		};
+
+		minift_init_vm( &foo, &call_stack, &data_stack, &param_stack, NULL );
+		minift_run( &foo );
+		debug_print( sysinfo, "forth vm exited, restarting...\n" );
+	}
+}
+
+void debug_print( struct foo *info, char *str ){
+	message_t msg;
+
+	for ( unsigned i = 0; str[i]; i++ ){
+		msg.data[0] = str[i];
+		msg.type    = 0xbabe;
+
+		c4_msg_send( &msg, info->display );
+	}
 }
 
 int c4_msg_send( message_t *buffer, unsigned to ){
