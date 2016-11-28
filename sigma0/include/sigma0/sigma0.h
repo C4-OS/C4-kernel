@@ -25,4 +25,6 @@ void display_thread( void *unused );
 int c4_msg_send( message_t *buffer, unsigned target );
 int c4_msg_recieve( message_t *buffer, unsigned whom );
 
+char decode_scancode( unsigned long code );
+
 #endif

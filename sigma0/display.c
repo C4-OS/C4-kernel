@@ -18,15 +18,6 @@ typedef struct vga_state {
 	unsigned y;
 } vga_state_t;
 
-const char *foo =
-	"~E1234567890-=~"
-	"Tqwertyuiop[]\n"
-	"Casdfghjkl;'?"
-	"S?zxcvbnm,./S"
-	"__ __________"
-	"-------------"
-	;
-
 static inline void scroll_display( vga_state_t *state ){
 	for ( unsigned i = START + 1; i < HEIGHT; i++ ){
 		vga_char_t *foo = state->textbuf + WIDTH * (i - 1);
@@ -64,12 +55,19 @@ void display_thread( void *unused ){
 	while ( true ){
 		c4_msg_recieve( &msg, 0 );
 
-		char c = (msg.type == 0xbeef)? foo[msg.data[0]] : msg.data[0];
+		//char c = (msg.type == 0xbeef)? foo[msg.data[0]] : msg.data[0];
+		char c = msg.data[0];
 
 		if ( c == '\n' ){
 			//display_y++;
 			//display_x = 0;
 			do_newline( &state );
+
+		} else if ( c == '\b' ){
+			state.x--;
+
+			vga_char_t *temp = state.textbuf + WIDTH * state.y + state.x;
+			temp->text = ' ';
 
 		} else {
 			vga_char_t *temp = state.textbuf + WIDTH * state.y + state.x;

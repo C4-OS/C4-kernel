@@ -52,13 +52,67 @@ void server( void *data ){
 	while ( true ){
 		c4_msg_recieve( &msg, 0 );
 
-		if ( msg.data[1] == 0 ){
-			c4_msg_send( &msg, meh->display );
-			c4_msg_send( &msg, meh->forth );
+		char c = decode_scancode( msg.data[0] );
+
+		if ( c && msg.data[1] == 0 ){
+			if ( c ){
+				message_t keycode;
+				keycode.type    = 0xbabe;
+				keycode.data[0] = c;
+
+				c4_msg_send( &keycode, meh->display );
+				c4_msg_send( &keycode, meh->forth );
+			}
 		}
 	}
 
 	for ( ;; );
+}
+
+enum {
+	CODE_ESCAPE,
+	CODE_TAB,
+	CODE_LEFT_CONTROL,
+	CODE_RIGHT_CONTROL,
+	CODE_LEFT_SHIFT,
+	CODE_RIGHT_SHIFT,
+};
+
+const char lowercase[] =
+	{ '`', CODE_ESCAPE, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-',
+	  '=', '\b', CODE_TAB, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p',
+	  '[', ']', '\n', CODE_LEFT_CONTROL, 'a', 's', 'd', 'f', 'g', 'h', 'j',
+	  'k', 'l', ';', '\'', '?', CODE_LEFT_SHIFT, '?', 'z', 'x', 'c', 'v', 'b',
+	  'n', 'm', ',', '.', '/', CODE_RIGHT_SHIFT, '_', '_', ' ', '_', '_', '_',
+	  '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_',
+	};
+
+const char uppercase[] =
+	{ '~', CODE_ESCAPE, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_',
+	  '+', '\b', CODE_TAB, 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
+	  '{', '}', '\n', CODE_LEFT_CONTROL, 'A', 'S', 'D', 'F', 'G', 'H', 'J',
+	  'K', 'L', ':', '"', '?', CODE_LEFT_SHIFT, '?', 'Z', 'X', 'C', 'V', 'B',
+	  'N', 'M', '<', '>', '?', CODE_RIGHT_SHIFT, '_', '_', ' ', '_', '_', '_',
+	  '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_',
+	};
+
+char decode_scancode( unsigned long code ){
+	static bool is_uppercase = false;
+	char c = is_uppercase? uppercase[code] : lowercase[code];
+	char ret = '\0';
+
+	switch ( c ){
+		case CODE_LEFT_SHIFT:
+		case CODE_RIGHT_SHIFT:
+			is_uppercase = !is_uppercase;
+			break;
+
+		default:
+			ret = c;
+			break;
+	}
+
+	return ret;
 }
 
 static struct foo *forth_sysinfo;
@@ -68,8 +122,14 @@ static char *read_line( char *buf, unsigned n ){
 	unsigned i = 0;
 
 	for ( i = 0; i < n - 1; i++ ){
+retry:
 		c4_msg_recieve( &msg, 0 );
-		char c = foo[msg.data[0]];
+		char c = msg.data[0];
+
+		if ( i && c == '\b' ){
+			i--;
+			goto retry;
+		}
 
 		buf[i] = c;
 
