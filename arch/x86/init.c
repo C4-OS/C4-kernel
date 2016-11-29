@@ -111,11 +111,11 @@ void sigma0_load( multiboot_module_t *module ){
 	void *sigma0_addr  = (void *)low_phys_to_virt(module->start);
 	addr_entry_t ent;
 
-	uintptr_t code_start = 0xc0de0000;
+	uintptr_t code_start = 0x3c0de000;
 	uintptr_t code_end   = code_start + func_size +
 	                       (PAGE_SIZE - (func_size % PAGE_SIZE));
-	uintptr_t data_start = 0xda7a0000;
-	uintptr_t data_end   = 0xda7f0000;
+	uintptr_t data_start = 0x3da7a000;
+	uintptr_t data_end   = 0x3da7f000;
 
 	void *func      = (void *)code_start;
 	void *new_stack = (void *)data_end;

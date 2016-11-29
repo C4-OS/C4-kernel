@@ -12,7 +12,7 @@ void forth_thread( void *sysinfo );
 void debug_print( struct foo *info, char *asdf );
 
 void main( void ){
-	unsigned *s = (void *)0xda7ef000;
+	unsigned *s = (void *)0x3da7e000;
 	struct foo thing;
 	message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
 
