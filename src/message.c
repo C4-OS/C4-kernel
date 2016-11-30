@@ -12,16 +12,29 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target );
 static inline bool kernel_msg_handle_recieve( message_t *msg );
 
 void message_recieve( message_t *msg ){
-	volatile thread_t *cur = sched_current_thread( );
+	thread_t *cur = sched_current_thread( );
 
-	while ( (cur->flags & SCHED_FLAG_PENDING_MSG) == 0 ){
-		cur->state = SCHED_STATE_WAITING;
+retry:
+	if ( (cur->flags & SCHED_FLAG_PENDING_MSG) == 0 ){
+		thread_t *sender = thread_list_pop( &cur->waiting );
 
-		sched_thread_yield( );
+		if ( sender ){
+			*msg = sender->message;
+			sender->state = SCHED_STATE_RUNNING;
+
+			sched_add_thread( sender );
+
+		} else {
+			cur->state = SCHED_STATE_WAITING;
+			sched_thread_yield( );
+			goto retry;
+		}
+
+	} else {
+		cur->state  = SCHED_STATE_RUNNING;
+		cur->flags &= ~SCHED_FLAG_PENDING_MSG;
+		*msg = cur->message;
 	}
-
-	cur->flags &= ~SCHED_FLAG_PENDING_MSG;
-	*msg = cur->message;
 }
 
 bool message_try_send( message_t *msg, unsigned id ){
@@ -60,8 +73,30 @@ bool message_try_send( message_t *msg, unsigned id ){
 }
 
 void message_send( message_t *msg, unsigned id ){
+	/*
 	while ( !message_try_send( msg, id )){
 		sched_thread_yield( );
+	}
+	*/
+
+	// try to copy the message buffer to the target thread,
+	// or put thread into the target's waiting list if it can't.
+	//
+	// the target then copies the message buffer from the sender thread
+	// once the target does a message_recieve() call, and this thread is
+	// popped from the list.
+	if ( !message_try_send( msg, id )){
+		thread_t *thread = thread_get_id( id );
+		thread_t *cur    = sched_current_thread( );
+
+		if ( thread ){
+			cur->message = *msg;
+			cur->state   = SCHED_STATE_SENDING;
+
+			thread_list_remove( &cur->sched );
+			thread_list_insert( &thread->waiting, &cur->sched );
+			sched_thread_yield( );
+		}
 	}
 }
 

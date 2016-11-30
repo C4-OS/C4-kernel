@@ -32,6 +32,7 @@ typedef struct thread {
 
 	thread_node_t intern;
 	thread_node_t sched;
+	thread_list_t waiting;
 
 	void          *stack;
 	void          *kernel_stack;
