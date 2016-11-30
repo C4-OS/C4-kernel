@@ -7,6 +7,9 @@
 static thread_list_t sched_list;
 static thread_t *current_thread;
 
+// TODO: once SMP is working, each CPU will need its own idle thread
+static thread_t *global_idle_thread = NULL;
+
 static void idle_thread( void *data ){
 	for (;;) {
 		asm volatile ( "hlt" );
@@ -15,7 +18,8 @@ static void idle_thread( void *data ){
 
 void init_scheduler( void ){
 	memset( &sched_list, 0, sizeof(thread_list_t) );
-	sched_add_thread( thread_create_kthread( idle_thread, NULL ));
+	//sched_add_thread( thread_create_kthread( idle_thread, NULL ));
+	global_idle_thread = thread_create_kthread( idle_thread, NULL );
 
 	current_thread = NULL;
 }
@@ -33,15 +37,36 @@ static inline thread_t *next_thread( thread_t *thread ){
 	return foo;
 }
 
+// TODO: rewrite scheduler to use a proper priority queue, move blocked
+//       threads to seperate lists/queues/whatever
 void sched_switch_thread( void ){
-	thread_t *next = next_thread( current_thread );
+	thread_t *next;
+	thread_t *start;
+
+	if ( !current_thread || current_thread == global_idle_thread ){
+		next  = sched_list.first->thread;
+		start = next;
+
+	} else {
+		next  = current_thread;
+		start = current_thread;
+	}
 
 	// TODO: move threads to a seperate 'waiting' list
 	while ( next->state != SCHED_STATE_RUNNING ){
 		next = next_thread( next );
+
+		if ( next == start ){
+			break;
+		}
 	}
 
-	sched_jump_to_thread( next );
+	if ( next->state != SCHED_STATE_RUNNING ){
+		sched_jump_to_thread( global_idle_thread );
+
+	} else {
+		sched_jump_to_thread( next );
+	}
 }
 
 void kernel_stack_set( void *addr );
