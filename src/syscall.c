@@ -64,9 +64,6 @@ static int syscall_create_thread( uintptr_t user_entry,
 	debug_printf( ">> created user thread %u\n", thread->id );
 	debug_printf( ">>      entry: %p\n", thread->registers.eip );
 	debug_printf( ">>      stack: %p\n", thread->registers.esp );
-	debug_printf( ">>       next: %p\n", thread->next );
-	debug_printf( ">>       prev: %p\n", thread->prev );
-	debug_printf( ">> next->prev: %p\n", thread->next->prev );
 	debug_printf( ">>    current: %p\n", thread );
 
 	return thread->id;

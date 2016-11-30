@@ -11,20 +11,28 @@ enum {
 	THREAD_FLAG_ROOT_TASK  = 2,
 };
 
-typedef struct thread thread_t;
+typedef struct thread      thread_t;
+typedef struct thread_node thread_node_t;
 
 typedef struct thread_list {
-	thread_t *first;
-	unsigned size;
+	thread_node_t *first;
+	unsigned       size;
 } thread_list_t;
+
+typedef struct thread_node {
+	thread_t      *thread;
+	thread_node_t *next;
+	thread_node_t *prev;
+	thread_list_t *list;
+} thread_node_t;
 
 typedef struct thread {
 	thread_regs_t registers;
 	addr_space_t  *addr_space;
 
-	thread_t      *next;
-	thread_t      *prev;
-	thread_list_t *list;
+	thread_node_t intern;
+	thread_node_t sched;
+
 	void          *stack;
 	void          *kernel_stack;
 
@@ -48,8 +56,8 @@ thread_t *thread_create_kthread( void (*entry)(void *), void *data );
 
 void thread_destroy( thread_t *thread );
 
-void thread_list_insert( thread_list_t *list, thread_t *thread );
-void thread_list_remove( thread_t *thread );
+void thread_list_insert( thread_list_t *list, thread_node_t *node );
+void thread_list_remove( thread_node_t *node );
 thread_t *thread_list_pop( thread_list_t *list );
 thread_t *thread_list_peek( thread_list_t *list );
 

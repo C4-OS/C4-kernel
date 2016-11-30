@@ -28,6 +28,9 @@ thread_t *thread_create( void (*entry)(void *),
 
 	thread_set_init_state( ret, entry, data, stack, flags );
 
+	ret->sched.thread  = ret;
+	ret->intern.thread = ret;
+
 	ret->id         = thread_counter++;
 	ret->task_id    = 1;
 	ret->addr_space = space;
@@ -55,30 +58,30 @@ void thread_destroy( thread_t *thread ){
 
 // TODO: maybe merge the slab list functions with the functions here
 //       using a common doubly-linked list implementation
-void thread_list_insert( thread_list_t *list, thread_t *thread ){
-	thread->list = list;
-	thread->next = list->first;
-	thread->prev = NULL;
+void thread_list_insert( thread_list_t *list, thread_node_t *node ){
+	node->list = list;
+	node->next = list->first;
+	node->prev = NULL;
 
 	if ( list->first ){
-		list->first->prev = thread;
+		list->first->prev = node;
 	}
 
-	list->first = thread;
+	list->first = node;
 }
 
-void thread_list_remove( thread_t *thread ){
-	if ( thread->list ){
-		if ( thread->prev ){
-			thread->prev->next = thread->next;
+void thread_list_remove( thread_node_t *node ){
+	if ( node->list ){
+		if ( node->prev ){
+			node->prev->next = node->next;
 		}
 
-		if ( thread->next ){
-			thread->next->prev = thread->prev;
+		if ( node->next ){
+			node->next->prev = node->prev;
 		}
 
-		if ( thread == thread->list->first ){
-			thread->list->first = thread->next;
+		if ( node == node->list->first ){
+			node->list->first = node->next;
 		}
 	}
 }
@@ -87,7 +90,7 @@ thread_t *thread_list_pop( thread_list_t *list ){
 	thread_t *ret = NULL;
 
 	if ( list->first ){
-		ret = list->first;
+		ret = list->first->thread;
 		thread_list_remove( list->first );
 	}
 
@@ -98,7 +101,7 @@ thread_t *thread_list_peek( thread_list_t *list ){
 	thread_t *ret = NULL;
 
 	if ( list->first ){
-		ret = list->first;
+		ret = list->first->thread;
 	}
 
 	return ret;
