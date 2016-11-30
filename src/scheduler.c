@@ -105,18 +105,6 @@ void sched_thread_exit( void ){
 
 }
 
-thread_t *sched_get_thread_by_id( unsigned id ){
-	thread_node_t *node = sched_list.first;
-
-	for ( ; node; node = node->next ){
-		if ( node->thread->id == id ){
-			return node->thread;
-		}
-	}
-
-	return NULL;
-}
-
 thread_t *sched_current_thread( void ){
 	return current_thread;
 }

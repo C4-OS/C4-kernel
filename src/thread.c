@@ -6,6 +6,10 @@
 
 static slab_t thread_slab;
 static unsigned thread_counter = 0;
+static thread_list_t thread_global_list = {
+	.first = NULL,
+	.size  = 0,
+};
 
 void init_threading( void ){
 	static bool initialized = false;
@@ -36,6 +40,8 @@ thread_t *thread_create( void (*entry)(void *),
 	ret->addr_space = space;
 	ret->flags      = flags;
 
+	thread_list_insert( &thread_global_list, &ret->intern );
+
 	return ret;
 }
 
@@ -53,6 +59,7 @@ thread_t *thread_create_kthread( void (*entry)(void *), void *data ){
 }
 
 void thread_destroy( thread_t *thread ){
+	thread_list_remove( &thread->intern );
 	slab_free( &thread_slab, thread );
 }
 
@@ -105,4 +112,16 @@ thread_t *thread_list_peek( thread_list_t *list ){
 	}
 
 	return ret;
+}
+
+thread_t *thread_get_id( unsigned id ){
+	thread_node_t *node = thread_global_list.first;
+
+	for ( ; node; node = node->next ){
+		if ( node->thread->id == id ){
+			return node->thread;
+		}
+	}
+
+	return NULL;
 }

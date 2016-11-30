@@ -26,7 +26,6 @@ void sched_thread_continue( thread_t *thread );
 void sched_thread_stop( thread_t *thread );
 void sched_thread_exit( void );
 
-thread_t *sched_get_thread_by_id( unsigned id );
 thread_t *sched_current_thread( void );
 
 #endif

@@ -25,7 +25,7 @@ void message_recieve( message_t *msg ){
 }
 
 bool message_try_send( message_t *msg, unsigned id ){
-	thread_t *thread = sched_get_thread_by_id( id );
+	thread_t *thread = thread_get_id( id );
 	thread_t *cur    = sched_current_thread( );
 
 	if ( !thread ){
