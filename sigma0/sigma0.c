@@ -17,9 +17,9 @@ void main( void ){
 	message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
 
 	thing.target  = 2;
-	thing.display = c4_create_thread( display_thread, s, NULL );
+	thing.display = c4_create_thread( display_thread, s, NULL, 0 );
 	s -= 1024;
-	thing.forth   = c4_create_thread( forth_thread,   s, &thing );
+	thing.forth   = c4_create_thread( forth_thread,   s, &thing, 0 );
 
 	c4_msg_send( &start, thing.display );
 	c4_msg_send( &start, thing.forth );
@@ -240,7 +240,7 @@ void debug_print( struct foo *info, char *str ){
 int c4_msg_send( message_t *buffer, unsigned to ){
 	int ret = 0;
 
-	DO_SYSCALL( SYSCALL_SEND, buffer, to, 0, ret );
+	DO_SYSCALL( SYSCALL_SEND, buffer, to, 0, 0, ret );
 
 	return ret;
 }
@@ -248,15 +248,20 @@ int c4_msg_send( message_t *buffer, unsigned to ){
 int c4_msg_recieve( message_t *buffer, unsigned from ){
 	int ret = 0;
 
-	DO_SYSCALL( SYSCALL_RECIEVE, buffer, from, 0, ret );
+	DO_SYSCALL( SYSCALL_RECIEVE, buffer, from, 0, 0, ret );
 
 	return ret;
 }
 
-int c4_create_thread( void (*entry)(void *), void *stack, void *data ){
+int c4_create_thread( void (*entry)(void *),
+                      void *stack,
+                      void *data,
+                      unsigned flags )
+{
+//int c4_create_thread( void (*entry)(void *), void *stack, void *data ){
 	int ret = 0;
 
-	DO_SYSCALL( SYSCALL_CREATE_THREAD, entry, stack, data, ret );
+	DO_SYSCALL( SYSCALL_CREATE_THREAD, entry, stack, data, flags, ret );
 
 	return ret;
 }

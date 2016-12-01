@@ -4,13 +4,14 @@
 #include <c4/thread.h>
 #include <c4/scheduler.h>
 
-typedef int (*syscall_func_t)( uintptr_t a, uintptr_t b, uintptr_t c );
+typedef uintptr_t arg_t;
+typedef int (*syscall_func_t)( arg_t a, arg_t b, arg_t c, arg_t d );
 
-static int syscall_exit( uintptr_t a, uintptr_t b, uintptr_t c );
-static int syscall_create_thread( uintptr_t a, uintptr_t b, uintptr_t c );
-static int syscall_send( uintptr_t a, uintptr_t b, uintptr_t c );
-static int syscall_send_async( uintptr_t a, uintptr_t b, uintptr_t c );
-static int syscall_recieve( uintptr_t a, uintptr_t b, uintptr_t c );
+static int syscall_exit( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_create_thread( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_send( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_recieve( arg_t a, arg_t b, arg_t c, arg_t d );
 
 static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_exit,
@@ -20,23 +21,24 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_recieve,
 };
 
-int syscall_dispatch( unsigned num, uintptr_t a, uintptr_t b, uintptr_t c ){
+int syscall_dispatch( unsigned num, arg_t a, arg_t b, arg_t c, arg_t d ){
 	if ( num >= SYSCALL_MAX ){
 		return -1;
 	}
 
-	return syscall_table[num](a, b, c);
+	return syscall_table[num](a, b, c, d);
 }
 
-static int syscall_exit( uintptr_t a, uintptr_t b, uintptr_t c ){
+static int syscall_exit( arg_t a, arg_t b, arg_t c, arg_t d ){
 	debug_printf( "got exit with %u, %u, and %u\n", a, b, c );
 
 	return 0;
 }
 
-static int syscall_create_thread( uintptr_t user_entry,
-                                  uintptr_t user_stack,
-                                  uintptr_t user_data )
+static int syscall_create_thread( arg_t user_entry,
+                                  arg_t user_stack,
+                                  arg_t user_data,
+                                  arg_t flags )
 {
 	void (*entry)(void *) = (void *)user_entry;
 	void *stack           = (void *)user_stack;
@@ -69,7 +71,7 @@ static int syscall_create_thread( uintptr_t user_entry,
 	return thread->id;
 }
 
-static int syscall_send( uintptr_t buffer, uintptr_t target, uintptr_t c ){
+static int syscall_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
 	unsigned id = sched_current_thread()->id;
 
@@ -85,11 +87,11 @@ static int syscall_send( uintptr_t buffer, uintptr_t target, uintptr_t c ){
 	return 0;
 }
 
-static int syscall_send_async( uintptr_t a, uintptr_t b, uintptr_t c ){
+static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d ){
 	return 0;
 }
 
-static int syscall_recieve( uintptr_t buffer, uintptr_t b, uintptr_t c ){
+static int syscall_recieve( arg_t buffer, arg_t b, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
 	unsigned id = sched_current_thread()->id;
 

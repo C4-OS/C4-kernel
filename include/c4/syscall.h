@@ -13,6 +13,8 @@ enum {
 
 // called from the appropriate syscall interface for the platform,
 // see arch/<platform>/syscall.c
-int syscall_dispatch( unsigned num, uintptr_t a, uintptr_t b, uintptr_t c );
+int syscall_dispatch( unsigned num,
+                      uintptr_t a, uintptr_t b,
+                      uintptr_t c, uintptr_t d );
 
 #endif
