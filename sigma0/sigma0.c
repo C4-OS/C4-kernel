@@ -173,6 +173,14 @@ void minift_put_char( char c ){
 	c4_msg_send( &msg, forth_sysinfo->display );
 }
 
+static bool c4_minift_sendmsg( minift_vm_t *vm );
+static bool c4_minift_recvmsg( minift_vm_t *vm );
+
+static minift_archive_entry_t c4_words[] = {
+	{ "sendmsg", c4_minift_sendmsg, 0 },
+	{ "recvmsg", c4_minift_recvmsg, 0 },
+};
+
 void forth_thread( void *sysinfo ){
 	forth_sysinfo = sysinfo;
 
@@ -181,6 +189,11 @@ void forth_thread( void *sysinfo ){
 	unsigned long params[32];
 
 	minift_vm_t foo;
+	minift_archive_t arc = {
+		.name    = "c4",
+		.entries = c4_words,
+		.size    = sizeof(c4_words) / sizeof(minift_archive_entry_t),
+	};
 
 	for ( ;; ){
 		minift_stack_t data_stack = {
@@ -202,6 +215,7 @@ void forth_thread( void *sysinfo ){
 		};
 
 		minift_init_vm( &foo, &call_stack, &data_stack, &param_stack, NULL );
+		minift_archive_add( &foo, &arc );
 		minift_run( &foo );
 		debug_print( sysinfo, "forth vm exited, restarting...\n" );
 	}
@@ -240,4 +254,34 @@ int c4_create_thread( void (*entry)(void *), void *stack, void *data ){
 	DO_SYSCALL( SYSCALL_CREATE_THREAD, entry, stack, data, ret );
 
 	return ret;
+}
+
+static bool c4_minift_sendmsg( minift_vm_t *vm ){
+	unsigned long target = minift_pop( vm, &vm->param_stack );
+	unsigned long temp   = minift_pop( vm, &vm->param_stack );
+	message_t *msg = (void *)temp;
+
+	if ( !vm->running ){
+		return false;
+	}
+
+	debug_print( forth_sysinfo, "got to sendmsg\n" );
+	c4_msg_send( msg, target );
+
+	return true;
+}
+
+static bool c4_minift_recvmsg( minift_vm_t *vm ){
+	//  TODO: add 'from' argument, once that's supported
+	unsigned long temp   = minift_pop( vm, &vm->param_stack );
+	message_t *msg = (void *)temp;
+
+	if ( !vm->running ){
+		return false;
+	}
+
+	debug_print( forth_sysinfo, "got to recvmsg\n" );
+	c4_msg_recieve( msg, 0 );
+
+	return true;
 }
