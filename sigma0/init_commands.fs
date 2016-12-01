@@ -41,14 +41,10 @@ make-msgbuf buffer
   then
 ;
 
-: stop ( thread-id -- )
-  stop-msg buffer set-type
-  buffer 1 sendmsg
-;
-
-: continue
-  continue-msg buffer set-type
-  buffer 1 sendmsg
-;
+: do-send  buffer set-type buffer swap sendmsg ;
+: stop     stop-msg     do-send ;
+: continue continue-msg do-send ;
+: debug    debug-msg    do-send ;
+: kill     kill-msg     do-send ;
 
 "All systems are go, good luck" print-string cr

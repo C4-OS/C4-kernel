@@ -204,7 +204,7 @@ void forth_thread( void *sysinfo ){
 		minift_stack_t data_stack = {
 			.start = data,
 			.ptr   = data,
-			.end   = data + 256,
+			.end   = data + 512,
 		};
 
 		minift_stack_t call_stack = {
