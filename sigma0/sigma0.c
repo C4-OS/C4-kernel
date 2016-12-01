@@ -143,20 +143,25 @@ retry:
 	return buf;
 }
 
+extern char _binary_sigma0_init_commands_fs_start[];
+extern char _binary_sigma0_init_commands_fs_end[];
+
 char minift_get_char( void ){
-	static char input[64];
+	static char input[80];
 	static bool initialized = false;
 	static char *ptr;
 
 	if ( !initialized ){
-		for ( unsigned i = 0; i < 64; i++ ){ input[i] = 0; }
-		ptr         = input;
+		*_binary_sigma0_init_commands_fs_end = 0;
+
+		for ( unsigned i = 0; i < sizeof(input); i++ ){ input[i] = 0; }
+		ptr         = _binary_sigma0_init_commands_fs_start;
 		initialized = true;
 	}
 
 	while ( !*ptr ){
 		debug_print( forth_sysinfo, "miniforth > " );
-		ptr = read_line( input, 64 );
+		ptr = read_line( input, sizeof( input ));
 	}
 
 	char fug[2] = { *ptr, 0 };
