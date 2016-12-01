@@ -41,7 +41,7 @@ addr_space_t *addr_space_clone( addr_space_t *space ){
 	KASSERT( ret->page_dir != NULL );
 	KASSERT( ret->map      != NULL );
 
-	memcpy( ret->map, space->map, sizeof( ret->map ));
+	memcpy( ret->map, space->map, sizeof( *ret->map ));
 
 	return ret;
 }

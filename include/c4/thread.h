@@ -11,6 +11,12 @@ enum {
 	THREAD_FLAG_ROOT_TASK  = 2,
 };
 
+enum {
+	THREAD_CREATE_FLAG_NONE   = 0,
+	THREAD_CREATE_FLAG_CLONE  = 1,
+	THREAD_CREATE_FLAG_NEWMAP = 2,
+};
+
 typedef struct thread      thread_t;
 typedef struct thread_node thread_node_t;
 

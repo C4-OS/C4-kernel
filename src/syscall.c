@@ -57,8 +57,16 @@ static int syscall_create_thread( arg_t user_entry,
 		return -1;
 	}
 
-	thread = thread_create( entry, data, cur->addr_space,
-	                        stack, THREAD_FLAG_USER );
+	addr_space_t *space = cur->addr_space;
+
+	if ( flags & THREAD_CREATE_FLAG_CLONE ){
+		space = addr_space_clone( space );
+
+	} else if ( flags & THREAD_CREATE_FLAG_NEWMAP ){
+		space = addr_space_clone( addr_space_kernel( ));
+	}
+
+	thread = thread_create( entry, data, space, stack, THREAD_FLAG_USER );
 
 	sched_thread_stop( thread );
 	sched_add_thread( thread );

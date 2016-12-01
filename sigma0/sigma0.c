@@ -1,5 +1,6 @@
 #include <sigma0/sigma0.h>
 #include <miniforth/miniforth.h>
+#include <c4/thread.h>
 
 struct foo {
 	int target;
@@ -19,7 +20,8 @@ void main( void ){
 	thing.target  = 2;
 	thing.display = c4_create_thread( display_thread, s, NULL, 0 );
 	s -= 1024;
-	thing.forth   = c4_create_thread( forth_thread,   s, &thing, 0 );
+	thing.forth   = c4_create_thread( forth_thread,   s, &thing,
+	                                  THREAD_CREATE_FLAG_CLONE );
 
 	c4_msg_send( &start, thing.display );
 	c4_msg_send( &start, thing.forth );
