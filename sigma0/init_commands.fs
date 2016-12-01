@@ -23,10 +23,11 @@
 6  value grantto-msg
 7  value requestphys-msg
 8  value pagefault-msg
-9  value stop-msg
-10 value continue-msg
-11 value end-msg
-12 value kill-msg
+9  value dumpmaps-msg
+10 value stop-msg
+11 value continue-msg
+12 value end-msg
+13 value kill-msg
 
 make-msgbuf buffer
 
@@ -46,5 +47,6 @@ make-msgbuf buffer
 : continue continue-msg do-send ;
 : debug    debug-msg    do-send ;
 : kill     kill-msg     do-send ;
+: dumpmaps dumpmaps-msg do-send ;
 
 "All systems are go, good luck" print-string cr

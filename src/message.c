@@ -115,6 +115,15 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 				msg->data[0], msg->data[1], msg->data[2] );
 			break;
 
+		case MESSAGE_TYPE_DUMP_MAPS:
+			debug_printf(
+				"[ipc] dumping memory maps for thread %u (map: %p)\n",
+				target->id, target->addr_space
+			);
+
+			addr_map_dump( target->addr_space->map );
+			break;
+
 		// handle thread control messages
 		// TODO: once capabilities are implemented, check for proper
 		//       capabilities to send these
