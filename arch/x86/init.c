@@ -111,18 +111,18 @@ void sigma0_load( multiboot_module_t *module ){
 	void *sigma0_addr  = (void *)low_phys_to_virt(module->start);
 	addr_entry_t ent;
 
-	uintptr_t code_start = 0x3c0de000;
+	uintptr_t code_start = 0xc0000000;
 	uintptr_t code_end   = code_start + func_size +
 	                       (PAGE_SIZE - (func_size % PAGE_SIZE));
-	uintptr_t data_start = 0x3da7a000;
-	uintptr_t data_end   = 0x3da7f000;
+	uintptr_t data_start = 0xd0000000;
+	uintptr_t data_end   = 0xd0010000;
 
 	void *func      = (void *)code_start;
 	void *new_stack = (void *)data_end;
 
 	ent = (addr_entry_t){
 		.virtual     = code_start,
-		.physical    = 0x800000,
+		.physical    = 0x810000,
 		.size        = (code_end - code_start) / PAGE_SIZE,
 		.permissions = PAGE_READ | PAGE_WRITE,
 	};
@@ -131,7 +131,7 @@ void sigma0_load( multiboot_module_t *module ){
 
 	ent = (addr_entry_t){
 		.virtual     = data_start,
-		.physical    = 0x804000,
+		.physical    = 0x800000,
 		.size        = (data_end - data_start) / PAGE_SIZE,
 		.permissions = PAGE_READ | PAGE_WRITE,
 	};

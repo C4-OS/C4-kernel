@@ -13,13 +13,13 @@ void forth_thread( void *sysinfo );
 void debug_print( struct foo *info, char *asdf );
 
 void main( void ){
-	unsigned *s = (void *)0x3da7e000;
+	unsigned *s = (void *)0xd000aff0;
 	struct foo thing;
 	message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
 
 	thing.target  = 2;
 	thing.display = c4_create_thread( display_thread, s, NULL, 0 );
-	s -= 1024;
+	s -= 2048;
 	thing.forth   = c4_create_thread( forth_thread,   s, &thing,
 	                                  THREAD_CREATE_FLAG_CLONE );
 
@@ -206,7 +206,7 @@ void forth_thread( void *sysinfo ){
 		minift_stack_t data_stack = {
 			.start = data,
 			.ptr   = data,
-			.end   = data + 512,
+			.end   = data + 1536,
 		};
 
 		minift_stack_t call_stack = {
