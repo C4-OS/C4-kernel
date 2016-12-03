@@ -71,6 +71,7 @@ addr_entry_t *addr_map_lookup( addr_map_t *map, unsigned long address );
 addr_entry_t *addr_map_split( addr_map_t *map,
                               addr_entry_t *entry,
                               unsigned long offset );
+addr_entry_t *addr_map_carve( addr_map_t *map, addr_entry_t *entry );
 void          addr_map_remove( addr_map_t *map, addr_entry_t *entry );
 addr_entry_t *addr_map_insert( addr_map_t *map, addr_entry_t *entry );
 

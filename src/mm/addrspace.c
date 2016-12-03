@@ -198,6 +198,34 @@ addr_entry_t *addr_map_split( addr_map_t *map,
 	return addr_map_insert( map, &temp );
 }
 
+// "carve" out an entry from the middle of another existing entry
+addr_entry_t *addr_map_carve( addr_map_t *map, addr_entry_t *entry ){
+	addr_entry_t *temp = addr_map_lookup( map, entry->virtual );
+
+	if ( !temp ){
+		return NULL;
+	}
+
+	uintptr_t off = (uintptr_t)entry->virtual - (uintptr_t)temp->virtual;
+	off = off / PAGE_SIZE;
+
+	// check to see if the requested region can actually be sliced out,
+	// if it's larger then return NULL to signal an error
+	if ( entry->size > temp->size - off ){
+		return NULL;
+	}
+
+	if ( off != 0 ){
+		temp = addr_map_split( map, temp, off );
+	}
+
+	if ( entry->size < temp->size ){
+		temp = addr_map_split( map, temp, entry->size );
+	}
+
+	return temp;
+}
+
 void addr_map_remove( addr_map_t *map, addr_entry_t *entry ){
 	unsigned index = ((uintptr_t)entry - (uintptr_t)map->map) / sizeof(*entry);
 
