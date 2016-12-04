@@ -1,5 +1,5 @@
 : print-string ( addr -- )
-  begin dup c@ 0 != while
+  while dup c@ 0 != begin
       dup c@ emit
       1 +
   repeat drop
@@ -9,10 +9,24 @@
   "0x" print-string .x cr drop
 ;
 
+: print-memfield ( n name -- )
+  print-string ": " print-string . " cells (" print-string
+  cells .  " bytes)" print-string
+  cr drop
+;
+
+: meminfo
+  push-meminfo
+  "available memory:" print-string cr
+  "     calls" print-memfield
+  "parameters" print-memfield
+  "      data" print-memfield
+;
+
 : make-msgbuf create 8 cells allot ;
 : get-type    @ ;
 : set-type    ! ;
-: is-keycode? get-type 47806 ( 0xbabe ) = ;
+: is-keycode? get-type 0xbabe = ;
 : get-keycode 2 cells + @ ;
 
 1  value debug-msg
@@ -33,13 +47,13 @@ make-msgbuf buffer
 
 : msgtest
   buffer recvmsg
-  buffer is-keycode? if
+  if buffer is-keycode? then
       "got a keypress: " print-string
       buffer get-keycode . cr drop
   else
       "got message with type " print-string
       buffer get-type . cr drop
-  then
+  end
 ;
 
 : do-send  buffer set-type buffer swap sendmsg ;
@@ -48,5 +62,14 @@ make-msgbuf buffer
 : debug    debug-msg    do-send ;
 : kill     kill-msg     do-send ;
 : dumpmaps dumpmaps-msg do-send ;
+
+: help
+  "some things you can do:" print-string cr
+  "  print-archives  : list available base words" print-string cr
+  "  help            : print this help" print-string cr
+  "  meminfo         : print the amount of memory available" print-string cr
+  "  stop | continue : stop or continue the given thread id" print-string cr
+  "  dumpmaps        : dump memory maps for the given thread" print-string cr
+;
 
 "All systems are go, good luck" print-string cr
