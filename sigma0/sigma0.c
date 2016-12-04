@@ -26,6 +26,15 @@ void main( void ){
 	c4_msg_send( &start, thing.display );
 	c4_msg_send( &start, thing.forth );
 
+	message_t mapthing = (message_t){ .type = MESSAGE_TYPE_MAP_TO, };
+
+	mapthing.data[0] = 0xd0001000;
+	mapthing.data[1] = 0x12345000;
+	mapthing.data[2] = 0x2;
+	mapthing.data[3] = PAGE_WRITE | PAGE_READ;
+
+	c4_msg_send( &mapthing, thing.forth );
+
 	server( &thing );
 
 	// TODO: panic or dump debug info or something, server()

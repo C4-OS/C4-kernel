@@ -2,6 +2,7 @@
 #include <c4/scheduler.h>
 #include <c4/debug.h>
 #include <c4/arch/scheduler.h>
+#include <c4/klib/string.h>
 #include <stdbool.h>
 
 static inline bool is_kernel_msg( message_t *msg ){
@@ -19,7 +20,15 @@ retry:
 		thread_t *sender = thread_list_pop( &cur->waiting );
 
 		if ( sender ){
-			*msg = sender->message;
+			// NOTE: copying into the thread's message buffer despite
+			//       being able to copy into the user buffer directly,
+			//       due to kernel message prcessing that happens below.
+			//
+			//       while it might be fine to copy directly anyway,
+			//       doing kernel work with user-controlled buffers would
+			//       probably be a bad idea...
+			//*msg = sender->message;
+			cur->message = sender->message;
 			sender->state = SCHED_STATE_RUNNING;
 
 			sched_add_thread( sender );
@@ -30,11 +39,15 @@ retry:
 			goto retry;
 		}
 
-	} else {
-		cur->state  = SCHED_STATE_RUNNING;
-		cur->flags &= ~SCHED_FLAG_PENDING_MSG;
-		*msg = cur->message;
 	}
+
+	if ( is_kernel_msg( &cur->message )){
+		kernel_msg_handle_recieve( &cur->message );
+	}
+
+	cur->state  = SCHED_STATE_RUNNING;
+	cur->flags &= ~SCHED_FLAG_PENDING_MSG;
+	*msg = cur->message;
 }
 
 bool message_try_send( message_t *msg, unsigned id ){
@@ -49,9 +62,9 @@ bool message_try_send( message_t *msg, unsigned id ){
 
 	// handle kernel interface messages
 	if ( is_kernel_msg( msg )){
-		bool return_early = kernel_msg_handle_send( msg, thread );
+		bool should_send = kernel_msg_handle_send( msg, thread );
 
-		if ( return_early ){
+		if ( !should_send ){
 			return true;
 		}
 	}
@@ -100,8 +113,35 @@ void message_send( message_t *msg, unsigned id ){
 	}
 }
 
+static inline bool message_map_to( message_t *msg ){
+	unsigned long from   = msg->data[0];
+	unsigned long to     = msg->data[1];
+	unsigned long size   = msg->data[2];
+	unsigned long perms  = msg->data[3];
+	thread_t *cur = sched_current_thread( );
+
+	addr_entry_t ent = (addr_entry_t){
+		.virtual     = from,
+		.size        = size,
+		.permissions = perms,
+	};
+
+	addr_entry_t *temp = addr_map_carve( cur->addr_space->map, &ent );
+	addr_entry_t *buf  = (addr_entry_t *)msg->data;
+
+	if ( !temp ){
+		return false;
+	}
+
+	memcpy( buf, temp, sizeof( *temp ));
+	buf->virtual = to;
+
+	return true;
+}
+
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 	thread_t *current = sched_current_thread( );
+	bool should_send = false;
 
 	switch ( msg->type ){
 		// intercepts message and prints, without sending to the reciever
@@ -124,6 +164,11 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			addr_map_dump( target->addr_space->map );
 			break;
 
+		// memory control messages
+		case MESSAGE_TYPE_MAP_TO:
+			should_send = message_map_to( msg );
+			break;
+
 		// handle thread control messages
 		// TODO: once capabilities are implemented, check for proper
 		//       capabilities to send these
@@ -141,9 +186,25 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			break;
 	}
 
-	return true;
+	return should_send;
 }
 
 static inline bool kernel_msg_handle_recieve( message_t *msg ){
+	debug_printf( "got here man\n" );
+
+	switch ( msg->type ){
+		case MESSAGE_TYPE_MAP_TO:
+			{
+				thread_t *cur = sched_current_thread( );
+				addr_entry_t *ent = (addr_entry_t *)msg->data;
+
+				addr_space_insert_map( cur->addr_space, ent );
+			}
+			break;
+
+		default:
+			break;
+	}
+
 	return true;
 }

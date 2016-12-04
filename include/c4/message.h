@@ -31,7 +31,7 @@ enum {
 typedef struct message {
 	unsigned type;
 	unsigned sender;
-	unsigned long data[3];
+	unsigned long data[6];
 } message_t;
 
 void message_recieve( message_t *msg );

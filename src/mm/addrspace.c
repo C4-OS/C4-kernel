@@ -201,6 +201,8 @@ addr_entry_t *addr_map_split( addr_map_t *map,
 // "carve" out an entry from the middle of another existing entry
 addr_entry_t *addr_map_carve( addr_map_t *map, addr_entry_t *entry ){
 	addr_entry_t *temp = addr_map_lookup( map, entry->virtual );
+	addr_entry_t *ret  = NULL;
+
 
 	if ( !temp ){
 		return NULL;
@@ -219,11 +221,14 @@ addr_entry_t *addr_map_carve( addr_map_t *map, addr_entry_t *entry ){
 		temp = addr_map_split( map, temp, off );
 	}
 
+	ret = temp;
+
+
 	if ( entry->size < temp->size ){
 		temp = addr_map_split( map, temp, entry->size );
 	}
 
-	return temp;
+	return ret;
 }
 
 void addr_map_remove( addr_map_t *map, addr_entry_t *entry ){
