@@ -24,7 +24,6 @@ void main( void ){
 	                                  THREAD_CREATE_FLAG_CLONE );
 
 	c4_msg_send( &start, thing.display );
-	c4_msg_send( &start, thing.forth );
 
 	message_t mapthing = (message_t){ .type = MESSAGE_TYPE_MAP_TO, };
 
@@ -34,6 +33,7 @@ void main( void ){
 	mapthing.data[3] = PAGE_WRITE | PAGE_READ;
 
 	c4_msg_send( &mapthing, thing.forth );
+	c4_msg_send( &start, thing.forth );
 
 	server( &thing );
 

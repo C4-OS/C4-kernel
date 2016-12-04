@@ -113,12 +113,12 @@ void message_send( message_t *msg, unsigned id ){
 	}
 }
 
-static inline bool message_map_to( message_t *msg ){
+static inline bool message_map_to( message_t *msg, thread_t *target ){
 	unsigned long from   = msg->data[0];
 	unsigned long to     = msg->data[1];
 	unsigned long size   = msg->data[2];
 	unsigned long perms  = msg->data[3];
-	thread_t *cur = sched_current_thread( );
+	bool should_send = false;
 
 	addr_entry_t ent = (addr_entry_t){
 		.virtual     = from,
@@ -126,17 +126,28 @@ static inline bool message_map_to( message_t *msg ){
 		.permissions = perms,
 	};
 
+	thread_t *cur = sched_current_thread( );
+
 	addr_entry_t *temp = addr_map_carve( cur->addr_space->map, &ent );
 	addr_entry_t *buf  = (addr_entry_t *)msg->data;
-
-	if ( !temp ){
-		return false;
-	}
 
 	memcpy( buf, temp, sizeof( *temp ));
 	buf->virtual = to;
 
-	return true;
+	if ( temp ){
+		if ( target->state == SCHED_STATE_STOPPED ){
+			addr_space_set( target->addr_space );
+			addr_space_insert_map( target->addr_space, buf );
+			addr_space_set( cur->addr_space );
+
+			should_send = false;
+
+		} else {
+			should_send = true;
+		}
+	}
+
+	return should_send;
 }
 
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
@@ -166,7 +177,7 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 
 		// memory control messages
 		case MESSAGE_TYPE_MAP_TO:
-			should_send = message_map_to( msg );
+			should_send = message_map_to( msg, target );
 			break;
 
 		// handle thread control messages
