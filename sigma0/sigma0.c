@@ -1,4 +1,5 @@
 #include <sigma0/sigma0.h>
+#include <sigma0/tar.h>
 #include <miniforth/miniforth.h>
 #include <c4/thread.h>
 
@@ -7,6 +8,14 @@ struct foo {
 	int display;
 	int forth;
 };
+
+// external binaries linked into the image
+// forth initial commands file
+extern char _binary_sigma0_init_commands_fs_start[];
+extern char _binary_sigma0_init_commands_fs_end[];
+// tar
+extern char _binary_sigma0_userprogs_tar_start[];
+extern char _binary_sigma0_userprogs_tar_end[];
 
 void test_thread( void *unused );
 void forth_thread( void *sysinfo );
@@ -25,14 +34,29 @@ void main( void ){
 
 	c4_msg_send( &start, thing.display );
 
-	message_t mapthing = (message_t){ .type = MESSAGE_TYPE_MAP_TO, };
+	void *from = (void *)0xd0001000;
+	void *to   = (void *)0x12345000;
 
-	mapthing.data[0] = 0xd0001000;
-	mapthing.data[1] = 0x12345000;
-	mapthing.data[2] = 0x2;
-	mapthing.data[3] = PAGE_WRITE | PAGE_READ;
+	c4_mem_map_to( thing.forth, from, to, 2, PAGE_WRITE | PAGE_READ );
 
-	c4_msg_send( &mapthing, thing.forth );
+	tar_header_t *arc = (tar_header_t *)_binary_sigma0_userprogs_tar_start;
+	tar_header_t *test = tar_lookup( arc, "sigma0/userprogs/test.txt" );
+
+	if ( test ){
+		debug_print( &thing, "tar: found test file, printing:\n" );
+
+		uint8_t  *data = tar_data( test );
+		unsigned  size = tar_data_size( test );
+
+		for ( unsigned i = 0; i < size; i++ ){
+			char foo[2] = { data[i], 0 };
+			debug_print( &thing, foo );
+		}
+
+	} else {
+		debug_print( &thing, "didn't find test...\n" );
+	}
+
 	c4_msg_send( &start, thing.forth );
 
 	server( &thing );
@@ -154,9 +178,6 @@ retry:
 	return buf;
 }
 
-extern char _binary_sigma0_init_commands_fs_start[];
-extern char _binary_sigma0_init_commands_fs_end[];
-
 char minift_get_char( void ){
 	static char input[80];
 	static bool initialized = false;
@@ -174,8 +195,6 @@ char minift_get_char( void ){
 		debug_print( forth_sysinfo, "miniforth > " );
 		ptr = read_line( input, sizeof( input ));
 	}
-
-	char fug[2] = { *ptr, 0 };
 
 	return *ptr++;
 }
@@ -200,7 +219,7 @@ static minift_archive_entry_t c4_words[] = {
 void forth_thread( void *sysinfo ){
 	forth_sysinfo = sysinfo;
 
-	unsigned long data[512];
+	unsigned long data[1024 + 512];
 	unsigned long calls[32];
 	unsigned long params[32];
 
@@ -269,12 +288,30 @@ int c4_create_thread( void (*entry)(void *),
                       void *data,
                       unsigned flags )
 {
-//int c4_create_thread( void (*entry)(void *), void *stack, void *data ){
 	int ret = 0;
 
 	DO_SYSCALL( SYSCALL_CREATE_THREAD, entry, stack, data, flags, ret );
 
 	return ret;
+}
+
+int c4_mem_map_to( unsigned thread_id,
+                   void *from,
+                   void *to,
+                   unsigned size,
+                   unsigned permissions )
+{
+	message_t msg = {
+		.type = MESSAGE_TYPE_MAP_TO,
+		.data = {
+			(uintptr_t)from,
+			(uintptr_t)to,
+			(uintptr_t)size,
+			(uintptr_t)permissions,
+		},
+	};
+
+	return c4_msg_send( &msg, thread_id );
 }
 
 static bool c4_minift_sendmsg( minift_vm_t *vm ){
