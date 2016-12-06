@@ -83,7 +83,7 @@ static int syscall_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
 	unsigned id = sched_current_thread()->id;
 
-	debug_printf( "%u: trying to send message %p to %u\n", id, msg, target );
+	//debug_printf( "%u: trying to send message %p to %u\n", id, msg, target );
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
@@ -103,7 +103,7 @@ static int syscall_recieve( arg_t buffer, arg_t b, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
 	unsigned id = sched_current_thread()->id;
 
-	debug_printf( "%u: trying to recieve message at %p\n", id, msg );
+	//debug_printf( "%u: trying to recieve message at %p\n", id, msg );
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
