@@ -55,12 +55,9 @@ void display_thread( void *unused ){
 	while ( true ){
 		c4_msg_recieve( &msg, 0 );
 
-		//char c = (msg.type == 0xbeef)? foo[msg.data[0]] : msg.data[0];
 		char c = msg.data[0];
 
 		if ( c == '\n' ){
-			//display_y++;
-			//display_x = 0;
 			do_newline( &state );
 
 		} else if ( c == '\b' ){
@@ -74,7 +71,10 @@ void display_thread( void *unused ){
 
 			temp->text  = c;
 			temp->color = 0x7;
-			state.x++;
+
+			if ( state.x++ >= WIDTH ){
+				do_newline( &state );
+			}
 		}
 	}
 }
