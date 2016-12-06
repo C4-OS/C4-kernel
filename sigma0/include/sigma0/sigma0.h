@@ -19,7 +19,6 @@
 	  : "g"(N), "g"(A), "g"(B), "g"(C), "g"(D) \
 	  : "eax", "edi", "esi", "edx", "ebx" );
 
-void main( void );
 void server( void * );
 
 void display_thread( void *unused );

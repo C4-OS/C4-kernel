@@ -14,10 +14,10 @@ struct foo {
 extern char _binary_sigma0_init_commands_fs_start[];
 extern char _binary_sigma0_init_commands_fs_end[];
 // tar
-extern char _binary_sigma0_userprogs_tar_start[];
-extern char _binary_sigma0_userprogs_tar_end[];
+extern char _binary_sigma0_initfs_tar_start[];
+extern char _binary_sigma0_initfs_tar_end[];
 
-static tar_header_t *tar_initfs = (void *)_binary_sigma0_userprogs_tar_start;
+static tar_header_t *tar_initfs = (void *)_binary_sigma0_initfs_tar_start;
 
 void test_thread( void *unused );
 void forth_thread( void *sysinfo );
@@ -43,7 +43,7 @@ void main( void ){
 
 	//tar_header_t *arc = (tar_header_t *)_binary_sigma0_userprogs_tar_start;
 	tar_header_t *arc = tar_initfs;
-	tar_header_t *test = tar_lookup( arc, "sigma0/userprogs/test.txt" );
+	tar_header_t *test = tar_lookup( arc, "sigma0/initfs/test.txt" );
 
 	if ( test ){
 		debug_print( &thing, "tar: found test file, printing:\n" );
