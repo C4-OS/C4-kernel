@@ -10,7 +10,7 @@ static thread_t *current_thread;
 // TODO: once SMP is working, each CPU will need its own idle thread
 static thread_t *global_idle_thread = NULL;
 
-static void idle_thread( void *data ){
+static void idle_thread( void ){
 	for (;;) {
 		asm volatile ( "hlt" );
 	}
@@ -18,8 +18,7 @@ static void idle_thread( void *data ){
 
 void init_scheduler( void ){
 	memset( &sched_list, 0, sizeof(thread_list_t) );
-	//sched_add_thread( thread_create_kthread( idle_thread, NULL ));
-	global_idle_thread = thread_create_kthread( idle_thread, NULL );
+	global_idle_thread = thread_create_kthread( idle_thread );
 
 	current_thread = NULL;
 }

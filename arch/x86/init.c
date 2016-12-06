@@ -20,7 +20,7 @@ void timer_handler( interrupt_frame_t *frame ){
 	sched_switch_thread( );
 }
 
-void test_thread_client( void *foo ){
+void test_thread_client( void ){
 	unsigned n = 0;
 	debug_printf( "sup man\n" );
 
@@ -39,7 +39,7 @@ void test_thread_client( void *foo ){
 	}
 }
 
-void test_thread_meh( void *foo ){
+void test_thread_meh( void ){
 	while ( true ){
 		message_t buf;
 
@@ -118,7 +118,7 @@ void sigma0_load( multiboot_module_t *module ){
 	uintptr_t data_end   = 0xd0010000;
 
 	void *func      = (void *)code_start;
-	void *new_stack = (void *)data_end;
+	void *new_stack = (void *)(data_start + 0xff8);
 
 	ent = (addr_entry_t){
 		.virtual     = code_start,
@@ -151,7 +151,7 @@ void sigma0_load( multiboot_module_t *module ){
 	memcpy( func, sigma0_addr, func_size );
 
 	thread_t *new_thread =
-		thread_create( func, NULL, new_space, new_stack, THREAD_FLAG_USER );
+		thread_create( func, new_space, new_stack, THREAD_FLAG_USER );
 
 	set_page_dir( page_get_kernel_dir( ));
 
@@ -240,10 +240,7 @@ void arch_init( multiboot_header_t *header ){
 	}
 
 	sigma0_load( sigma0 );
-	sched_add_thread( thread_create_kthread( test_thread_client, NULL ));
-	sched_add_thread( thread_create_kthread( test_thread_meh, NULL ));
-	sched_add_thread( thread_create_kthread( test_thread_a, NULL ));
-	sched_add_thread( thread_create_kthread( test_thread_client, NULL ));
+	sched_add_thread( thread_create_kthread( test_thread_client ));
 
 	register_interrupt( INTERRUPT_TIMER,    timer_handler );
 	register_interrupt( INTERRUPT_KEYBOARD, keyboard_handler );

@@ -7,8 +7,7 @@
 #include <c4/scheduler.h>
 
 void thread_set_init_state( thread_t *thread,
-                            void (*entry)(void *data),
-                            void *data,
+                            void (*entry)(void),
                             void *stack,
                             unsigned flags )
 {
@@ -18,13 +17,6 @@ void thread_set_init_state( thread_t *thread,
 	uint8_t *kern_stack = region_alloc( region_get_global( ));
 
 	KASSERT( kern_stack != NULL );
-
-	// argument for entry function
-	*(--new_stack) = (uint32_t)data;
-
-	// return address, set to the exit function
-	// so threads exit when they return
-	*(--new_stack) = (uint32_t)sched_thread_exit;
 
 	thread->stack         = new_stack;
 	thread->kernel_stack  = kern_stack + PAGE_SIZE;

@@ -53,13 +53,12 @@ typedef struct thread {
 } thread_t;
 
 void init_threading( void );
-thread_t *thread_create( void (*entry)(void *),
-                         void *data,
+thread_t *thread_create( void (*entry)(void),
                          addr_space_t *space,
                          void *stack,
                          unsigned flags );
 
-thread_t *thread_create_kthread( void (*entry)(void *), void *data );
+thread_t *thread_create_kthread( void (*entry)(void));
 
 void thread_destroy( thread_t *thread );
 
@@ -72,8 +71,7 @@ thread_t *thread_get_id( unsigned id );
 
 // functions below are implemented in arch-specific code
 void thread_set_init_state( thread_t *thread,
-                            void (*entry)(void *data),
-                            void *data,
+                            void (*entry)(void),
                             void *stack,
                             unsigned flags );
 

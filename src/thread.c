@@ -22,15 +22,14 @@ void init_threading( void ){
 	}
 }
 
-thread_t *thread_create( void (*entry)(void *),
-                         void *data,
+thread_t *thread_create( void (*entry)(void),
                          addr_space_t *space,
                          void *stack,
                          unsigned flags )
 {
 	thread_t *ret = slab_alloc( &thread_slab );
 
-	thread_set_init_state( ret, entry, data, stack, flags );
+	thread_set_init_state( ret, entry, stack, flags );
 
 	ret->sched.thread  = ret;
 	ret->intern.thread = ret;
@@ -45,14 +44,13 @@ thread_t *thread_create( void (*entry)(void *),
 	return ret;
 }
 
-thread_t *thread_create_kthread( void (*entry)(void *), void *data ){
+thread_t *thread_create_kthread( void (*entry)(void)){
 	uint8_t *stack = region_alloc( region_get_global( ));
 
 	KASSERT( stack != NULL );
 	stack += PAGE_SIZE;
 
 	return thread_create( entry,
-	                      data,
 	                      addr_space_reference( addr_space_kernel( )),
 	                      stack,
 	                      THREAD_FLAG_NONE );

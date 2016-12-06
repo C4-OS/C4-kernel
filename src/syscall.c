@@ -37,22 +37,19 @@ static int syscall_exit( arg_t a, arg_t b, arg_t c, arg_t d ){
 
 static int syscall_create_thread( arg_t user_entry,
                                   arg_t user_stack,
-                                  arg_t user_data,
-                                  arg_t flags )
+                                  arg_t flags,
+                                  arg_t d )
 {
-	void (*entry)(void *) = (void *)user_entry;
-	void *stack           = (void *)user_stack;
-	void *data            = (void *)user_data;
+	void (*entry)(void) = (void *)user_entry;
+	void *stack         = (void *)user_stack;
 
 	thread_t *thread;
 	thread_t *cur = sched_current_thread( );
 
-	if ( !is_user_address( entry )
-	     || !is_user_address( stack )
-	     || !is_user_address( data ))
+	if ( !is_user_address( entry ) || !is_user_address( stack ))
 	{
-		debug_printf( "%s: invalid argument, entry: %p, stack: %p, data:%p\n",
-		              entry, stack, data );
+		debug_printf( "%s: invalid argument, entry: %p, stack: %p\n",
+		              entry, stack );
 
 		return -1;
 	}
@@ -66,7 +63,7 @@ static int syscall_create_thread( arg_t user_entry,
 		space = addr_space_clone( addr_space_kernel( ));
 	}
 
-	thread = thread_create( entry, data, space, stack, THREAD_FLAG_USER );
+	thread = thread_create( entry, space, stack, THREAD_FLAG_USER );
 
 	sched_thread_stop( thread );
 	sched_add_thread( thread );
@@ -81,7 +78,7 @@ static int syscall_create_thread( arg_t user_entry,
 
 static int syscall_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
-	unsigned id = sched_current_thread()->id;
+	//unsigned id = sched_current_thread()->id;
 
 	//debug_printf( "%u: trying to send message %p to %u\n", id, msg, target );
 
@@ -101,7 +98,7 @@ static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d ){
 
 static int syscall_recieve( arg_t buffer, arg_t b, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
-	unsigned id = sched_current_thread()->id;
+	//unsigned id = sched_current_thread()->id;
 
 	//debug_printf( "%u: trying to recieve message at %p\n", id, msg );
 
