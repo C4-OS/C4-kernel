@@ -33,9 +33,7 @@ tar_header_t *tar_lookup( tar_header_t *archive, const char *name ){
 			break;
 		}
 
-		unsigned size = octal_num( temp->size );
-		temp += size / sizeof( tar_header_t ) + 1;
-		temp += size % sizeof( tar_header_t ) > 0;
+		temp = tar_next( temp );
 	}
 
 	return ret;
