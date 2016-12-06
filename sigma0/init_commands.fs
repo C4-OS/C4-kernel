@@ -72,4 +72,23 @@ make-msgbuf buffer
   "  dumpmaps        : dump memory maps for the given thread" print-string cr
 ;
 
+: initfs-print ( name -- )
+  tarfind dup tarsize
+  "size: " print-string .   cr drop
+  "addr: " print-string hex cr
+;
+
+: ls ( -- )
+  "/" tarfind
+  while dup c@ 0 != begin
+    dup print-string cr
+    tarnext
+  repeat
+;
+
+
 "All systems are go, good luck" print-string cr
+
+( XXX : newline needed at the end of the file because the init routine )
+(       sets the last byte of the file to 0 )
+

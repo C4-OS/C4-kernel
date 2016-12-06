@@ -41,6 +41,19 @@ tar_header_t *tar_lookup( tar_header_t *archive, const char *name ){
 	return ret;
 }
 
+tar_header_t *tar_next( tar_header_t *archive ){
+	tar_header_t *ret = archive;
+
+	if ( ret && *ret->filename ){
+		unsigned size = octal_num( ret->size );
+
+		ret += size / sizeof( tar_header_t ) + 1;
+		ret += size % sizeof( tar_header_t ) > 0;
+	}
+
+	return ret;
+}
+
 void *tar_data( tar_header_t *archive ){
 	return (void *)(archive + 1);
 }

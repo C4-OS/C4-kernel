@@ -17,6 +17,8 @@ extern char _binary_sigma0_init_commands_fs_end[];
 extern char _binary_sigma0_userprogs_tar_start[];
 extern char _binary_sigma0_userprogs_tar_end[];
 
+static tar_header_t *tar_initfs = (void *)_binary_sigma0_userprogs_tar_start;
+
 void test_thread( void *unused );
 void forth_thread( void *sysinfo );
 void debug_print( struct foo *info, char *asdf );
@@ -39,7 +41,8 @@ void main( void ){
 
 	c4_mem_map_to( thing.forth, from, to, 2, PAGE_WRITE | PAGE_READ );
 
-	tar_header_t *arc = (tar_header_t *)_binary_sigma0_userprogs_tar_start;
+	//tar_header_t *arc = (tar_header_t *)_binary_sigma0_userprogs_tar_start;
+	tar_header_t *arc = tar_initfs;
 	tar_header_t *test = tar_lookup( arc, "sigma0/userprogs/test.txt" );
 
 	if ( test ){
@@ -184,7 +187,7 @@ char minift_get_char( void ){
 	static char *ptr;
 
 	if ( !initialized ){
-		*_binary_sigma0_init_commands_fs_end = 0;
+		*(_binary_sigma0_init_commands_fs_end - 1) = 0;
 
 		for ( unsigned i = 0; i < sizeof(input); i++ ){ input[i] = 0; }
 		ptr         = _binary_sigma0_init_commands_fs_start;
@@ -210,10 +213,16 @@ void minift_put_char( char c ){
 
 static bool c4_minift_sendmsg( minift_vm_t *vm );
 static bool c4_minift_recvmsg( minift_vm_t *vm );
+static bool c4_minift_tarfind( minift_vm_t *vm );
+static bool c4_minift_tarsize( minift_vm_t *vm );
+static bool c4_minift_tarnext( minift_vm_t *vm );
 
 static minift_archive_entry_t c4_words[] = {
 	{ "sendmsg", c4_minift_sendmsg, 0 },
 	{ "recvmsg", c4_minift_recvmsg, 0 },
+	{ "tarfind", c4_minift_tarfind, 0 },
+	{ "tarsize", c4_minift_tarsize, 0 },
+	{ "tarnext", c4_minift_tarnext, 0 },
 };
 
 void forth_thread( void *sysinfo ){
@@ -340,6 +349,44 @@ static bool c4_minift_recvmsg( minift_vm_t *vm ){
 
 	debug_print( forth_sysinfo, "got to recvmsg\n" );
 	c4_msg_recieve( msg, 0 );
+
+	return true;
+}
+
+static bool c4_minift_tarfind( minift_vm_t *vm ){
+	const char   *name   = (const char *)minift_pop( vm, &vm->param_stack );
+
+	// simulate a "root" directory, which just returns the start of the
+	// tar archive
+	if ( name[0] == '/' && name[1] == '\0' ){
+		minift_push( vm, &vm->param_stack, (unsigned long)tar_initfs );
+
+	} else {
+		tar_header_t *lookup = tar_lookup( tar_initfs, name );
+		minift_push( vm, &vm->param_stack, (unsigned long)lookup );
+	}
+
+	return true;
+}
+
+static bool c4_minift_tarsize( minift_vm_t *vm ){
+	tar_header_t *lookup = (tar_header_t *)minift_pop( vm, &vm->param_stack );
+
+	if ( lookup ){
+		minift_push( vm, &vm->param_stack, tar_data_size( lookup ));
+
+	} else {
+		minift_push( vm, &vm->param_stack, 0 );
+	}
+
+	return true;
+}
+
+static bool c4_minift_tarnext( minift_vm_t *vm ){
+	tar_header_t *temp = (tar_header_t *)minift_pop( vm, &vm->param_stack );
+
+	temp = tar_next( temp );
+	minift_push( vm, &vm->param_stack, (unsigned long)temp );
 
 	return true;
 }

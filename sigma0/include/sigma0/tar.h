@@ -12,6 +12,7 @@ typedef struct tar_header {
 } tar_header_t;
 
 tar_header_t *tar_lookup( tar_header_t *archive, const char *name );
+tar_header_t *tar_next( tar_header_t *archive );
 void         *tar_data( tar_header_t *archive );
 unsigned      tar_data_size( tar_header_t *archive );
 
