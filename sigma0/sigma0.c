@@ -1,5 +1,6 @@
 #include <sigma0/sigma0.h>
 #include <sigma0/tar.h>
+#include <sigma0/elf.h>
 #include <miniforth/miniforth.h>
 #include <c4/thread.h>
 
@@ -22,51 +23,105 @@ static tar_header_t *tar_initfs = (void *)_binary_sigma0_initfs_tar_start;
 void test_thread( void *unused );
 void forth_thread( void *sysinfo );
 void debug_print( struct foo *info, char *asdf );
+int  elf_load( Elf32_Ehdr *elf, int display );
+
+static void *allot_pages( unsigned pages ){
+	static uint8_t *s = (void *)0xd0001000;
+	void *ret = s;
+
+	s += pages * PAGE_SIZE;
+
+	return ret;
+}
+
+static void *allot_stack( unsigned pages ){
+	uint8_t *ret = allot_pages( pages );
+
+	ret += pages * PAGE_SIZE - 4;
+
+	return ret;
+}
+
+static void *stack_push( unsigned *stack, unsigned foo ){
+	*(stack--) = foo;
+
+	return stack;
+}
 
 void main( void ){
-	unsigned *s = (void *)0xd000aff0;
 	struct foo thing;
-	message_t start = (message_t){ .type = MESSAGE_TYPE_CONTINUE, };
 
-	thing.target  = 2;
-	thing.display = c4_create_thread( display_thread, s, NULL, 0 );
-	s -= 2048;
-	thing.forth   = c4_create_thread( forth_thread,   s, &thing,
-	                                  THREAD_CREATE_FLAG_CLONE );
+	unsigned *s = allot_stack( 1 );
+	s -= 1;
+	thing.display = c4_create_thread( display_thread, s, 0 );
 
-	c4_msg_send( &start, thing.display );
+	s = allot_stack( 2 );
+	s = stack_push( s, (unsigned)&thing );
 
-	void *from = (void *)0xd0001000;
-	void *to   = (void *)0x12345000;
+	thing.forth = c4_create_thread( forth_thread, s, THREAD_CREATE_FLAG_CLONE);
 
-	c4_mem_map_to( thing.forth, from, to, 2, PAGE_WRITE | PAGE_READ );
+	c4_continue_thread( thing.display );
 
-	//tar_header_t *arc = (tar_header_t *)_binary_sigma0_userprogs_tar_start;
 	tar_header_t *arc = tar_initfs;
-	tar_header_t *test = tar_lookup( arc, "sigma0/initfs/test.txt" );
+	tar_header_t *test = tar_lookup( arc, "sigma0/initfs/bin/test" );
 
 	if ( test ){
-		debug_print( &thing, "tar: found test file, printing:\n" );
+		debug_print( &thing, "tar: found test file, loading...\n" );
 
 		uint8_t  *data = tar_data( test );
 		unsigned  size = tar_data_size( test );
 
-		for ( unsigned i = 0; i < size; i++ ){
-			char foo[2] = { data[i], 0 };
-			debug_print( &thing, foo );
-		}
+		elf_load( (void *)data, 2 );
 
 	} else {
 		debug_print( &thing, "didn't find test...\n" );
 	}
 
-	c4_msg_send( &start, thing.forth );
+	c4_continue_thread( thing.forth );
 
 	server( &thing );
 
 	// TODO: panic or dump debug info or something, server()
 	//       should never return
 	for ( ;; );
+}
+
+int elf_load( Elf32_Ehdr *elf, int display ){
+	unsigned stack_offset = 0xff8;
+
+	void *entry      = (void *)elf->e_entry;
+	void *to_stack   = (uint8_t *)0xa0000000;
+	void *from_stack = (uint8_t *)allot_pages(1);
+	void *stack      = (uint8_t *)to_stack + stack_offset;
+
+	// copy the output pointer to the new stack
+	*(unsigned *)((uint8_t *)from_stack + stack_offset + 4) = (unsigned)display;
+
+	int thread_id = c4_create_thread( entry, stack,
+	                                  THREAD_CREATE_FLAG_NEWMAP);
+
+	c4_mem_map_to( thread_id, from_stack, to_stack, 1, PAGE_READ|PAGE_WRITE );
+
+	// load program headers
+	for ( unsigned i = 0; i < elf->e_phnum; i++ ){
+		Elf32_Phdr *header = elf_get_phdr( elf, i );
+		uint8_t *progdata  = (uint8_t *)((uintptr_t)elf + header->p_offset );
+		void    *addr      = (void *)header->p_vaddr;
+		unsigned pages     = header->p_memsz / PAGE_SIZE
+		                   + header->p_memsz % PAGE_SIZE > 0;
+		uint8_t *databuf   = allot_pages( pages );
+
+		for ( unsigned k = 0; k < header->p_filesz; k++ ){
+			databuf[k] = progdata[k];
+		}
+
+		// TODO: translate elf permissions into message permissions
+		c4_mem_map_to( thread_id, databuf, addr, pages, PAGE_READ | PAGE_WRITE );
+	}
+
+	c4_continue_thread( thread_id );
+
+	return 0;
 }
 
 void test_thread( void *data ){
@@ -228,6 +283,8 @@ static minift_archive_entry_t c4_words[] = {
 void forth_thread( void *sysinfo ){
 	forth_sysinfo = sysinfo;
 
+	volatile unsigned x = forth_sysinfo->display;
+
 	unsigned long data[1024 + 512];
 	unsigned long calls[32];
 	unsigned long params[32];
@@ -292,16 +349,18 @@ int c4_msg_recieve( message_t *buffer, unsigned from ){
 	return ret;
 }
 
-int c4_create_thread( void (*entry)(void *),
-                      void *stack,
-                      void *data,
-                      unsigned flags )
-{
+int c4_create_thread( void (*entry)(void *), void *stack, unsigned flags ){
 	int ret = 0;
 
-	DO_SYSCALL( SYSCALL_CREATE_THREAD, entry, stack, data, flags, ret );
+	DO_SYSCALL( SYSCALL_CREATE_THREAD, entry, stack, flags, 0, ret );
 
 	return ret;
+}
+
+int c4_continue_thread( unsigned thread ){
+	message_t buf = { .type = MESSAGE_TYPE_CONTINUE, };
+
+	return c4_msg_send( &buf, thread );
 }
 
 int c4_mem_map_to( unsigned thread_id,

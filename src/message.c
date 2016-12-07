@@ -128,6 +128,8 @@ static inline bool message_map_to( message_t *msg, thread_t *target ){
 
 	thread_t *cur = sched_current_thread( );
 
+	// TODO: move message buffer to in-kernel stack, so the user can't
+	//       manipulate the buffer and map virtual/physical memory wherever
 	addr_entry_t *temp = addr_map_carve( cur->addr_space->map, &ent );
 	addr_entry_t *buf  = (addr_entry_t *)msg->data;
 
@@ -136,8 +138,10 @@ static inline bool message_map_to( message_t *msg, thread_t *target ){
 
 	if ( temp ){
 		if ( target->state == SCHED_STATE_STOPPED ){
+			addr_entry_t temp = *buf;
+
 			addr_space_set( target->addr_space );
-			addr_space_insert_map( target->addr_space, buf );
+			addr_space_insert_map( target->addr_space, &temp );
 			addr_space_set( cur->addr_space );
 
 			should_send = false;

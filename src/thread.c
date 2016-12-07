@@ -6,7 +6,7 @@
 
 static slab_t thread_slab;
 static unsigned thread_counter = 0;
-static thread_list_t thread_global_list = {
+thread_list_t thread_global_list = {
 	.first = NULL,
 	.size  = 0,
 };

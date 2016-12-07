@@ -226,13 +226,12 @@ typedef struct {
 	Elf32_Sword r_append;
 } Elf32_Rela;
 
-// TODO: rename these to fit C4 naming conventions
-Elf32_Shdr *get_elf_shdr( Elf32_Ehdr *, unsigned );
-Elf32_Shdr *get_elf_shdr_byname( Elf32_Ehdr *, char * );
-Elf32_Phdr *get_elf_phdr( Elf32_Ehdr *, unsigned );
+Elf32_Shdr *elf_get_shdr( Elf32_Ehdr *, unsigned );
+Elf32_Shdr *elf_get_shdr_byname( Elf32_Ehdr *, char * );
+Elf32_Phdr *elf_get_phdr( Elf32_Ehdr *, unsigned );
 
-Elf32_Sym  *get_elf_sym( Elf32_Ehdr *, int, char * );
-char       *get_elf_sym_name( Elf32_Ehdr *, Elf32_Sym *, char * );
-Elf32_Sym  *get_elf_sym_byname( Elf32_Ehdr *, char *, char * );
+Elf32_Sym  *elf_get_sym( Elf32_Ehdr *, int, char * );
+char       *elf_get_sym_name( Elf32_Ehdr *, Elf32_Sym *, char * );
+Elf32_Sym  *elf_get_sym_byname( Elf32_Ehdr *, char *, char * );
 
 #endif

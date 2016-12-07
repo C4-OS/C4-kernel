@@ -62,6 +62,7 @@ make-msgbuf buffer
 : debug    debug-msg    do-send ;
 : kill     kill-msg     do-send ;
 : dumpmaps dumpmaps-msg do-send ;
+: ping     1234         do-send ;
 
 : help
   "some things you can do:" print-string cr

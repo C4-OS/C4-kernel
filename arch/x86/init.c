@@ -163,15 +163,15 @@ void keyboard_handler( interrupt_frame_t *frame ){
 	bool key_up = !!(scancode & 0x80);
 	scancode &= ~0x80;
 
-	debug_printf( "ps2 keyboard: got scancode %u (%s)\n",
-		scancode, key_up? "release" : "press" );
+	debug_printf( "ps2 keyboard: got scancode %u (%s)",
+		scancode, key_up? "release" : "press  " );
 
 	message_t msg = {
 		.type = 0xbeef,
 		.data = { scancode, key_up },
 	};
 
-	message_try_send( &msg, 1 );
+	debug_printf( ", %s\n", message_try_send( &msg, 1 )? "sent" : "not sent" );
 }
 
 multiboot_module_t *sigma0_find_module( multiboot_header_t *header ){

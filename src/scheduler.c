@@ -106,11 +106,15 @@ void sched_add_thread( thread_t *thread ){
 }
 
 void sched_thread_continue( thread_t *thread ){
-	thread->state = SCHED_STATE_RUNNING;
+	if ( thread->state == SCHED_STATE_STOPPED ){
+		thread->state = SCHED_STATE_RUNNING;
+	}
 }
 
 void sched_thread_stop( thread_t *thread ){
-	thread->state = SCHED_STATE_STOPPED;
+	if ( thread->state == SCHED_STATE_RUNNING ){
+		thread->state = SCHED_STATE_STOPPED;
+	}
 }
 
 void sched_thread_exit( void ){

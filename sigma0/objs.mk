@@ -2,7 +2,7 @@ SIGMA0_INCLUDE = ./sigma0/include/
 MINIFT_INCLUDE = ./sigma0/miniforth/include/
 SIGMA0_CFLAGS  = $(K_CFLAGS) -fpie -fpic -I$(SIGMA0_INCLUDE) -I$(MINIFT_INCLUDE)
 
-sig-objs  = sigma0/sigma0.o sigma0/display.o sigma0/tar.o
+sig-objs  = sigma0/sigma0.o sigma0/display.o sigma0/tar.o sigma0/elf.o
 sig-objs += sigma0/miniforth/out/miniforth.a
 sig-objs += sigma0/init_commands.o
 sig-objs += sigma0/initfs.o
