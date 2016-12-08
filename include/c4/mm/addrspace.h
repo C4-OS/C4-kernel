@@ -62,6 +62,7 @@ int addr_space_grant( addr_space_t *a,
 
 int addr_space_unmap( addr_space_t *space, unsigned long address );
 int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent );
+int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent );
 
 addr_map_t *addr_map_create( region_t *region );
 void        addr_map_free( addr_map_t *map );

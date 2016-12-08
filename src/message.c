@@ -113,7 +113,40 @@ void message_send( message_t *msg, unsigned id ){
 	}
 }
 
-static inline bool message_map_to( message_t *msg, thread_t *target ){
+enum {
+	MAP_IS_MAP   = false,
+	MAP_IS_GRANT = true,
+};
+
+static inline bool message_map_to( message_t *msg,
+                                   thread_t *target,
+                                   bool grant )
+{
+	// TODO: keep track of whether an entry is a map or grant, and refuse
+	//       to grant an entry to another address space when the current
+	//       address space was given it as a map.
+	//       (continuing to map and subdivide maps is ok, though)
+	//
+	//       rationale being that when all threads referencing an address
+	//       space exit, the memory will need to be reclaimed. So, it's assumed
+	//       that all maps have a backing grant at some other address space,
+	//       and that grants are the `definitive` entry, and when automatic
+	//       cleanup occurs, all granted entries would be granted back to the
+	//       pager for the address space to be redistributed.
+	//
+	//       the thread(s) themselves can't release memory back, because they
+	//       might have faulted and be unable to continue.
+	//
+	//       consider ways to handle granting entries away which are currently
+	//       mapped in other address spaces, but are in the current address
+	//       space as a grant.
+	//       this doesn't violate the assumptions above,
+	//       but would lead to use-after-frees if the pager is given meory
+	//       while another address space continues to use it.
+	//       one solution: keep track of the address space which gave the
+	//       current address space the entry, and keep reference counts on
+	//       entries based off of physical memory addresses.
+
 	unsigned long from   = msg->data[0];
 	unsigned long to     = msg->data[1];
 	unsigned long size   = msg->data[2];
@@ -128,25 +161,30 @@ static inline bool message_map_to( message_t *msg, thread_t *target ){
 
 	thread_t *cur = sched_current_thread( );
 
-	// TODO: move message buffer to in-kernel stack, so the user can't
-	//       manipulate the buffer and map virtual/physical memory wherever
 	addr_entry_t *temp = addr_map_carve( cur->addr_space->map, &ent );
-	addr_entry_t *buf  = (addr_entry_t *)msg->data;
+	addr_entry_t msgbuf;
 
-	memcpy( buf, temp, sizeof( *temp ));
-	buf->virtual = to;
+	//memcpy( &msgbuf, temp, sizeof( addr_entry_t ));
+	msgbuf = *temp;
+	msgbuf.virtual = to;
 
 	if ( temp ){
-		if ( target->state == SCHED_STATE_STOPPED ){
-			addr_entry_t temp = *buf;
+		if ( grant ){
+			addr_space_remove_map( cur->addr_space, temp );
+		}
 
+		if ( target->state == SCHED_STATE_STOPPED ){
 			addr_space_set( target->addr_space );
-			addr_space_insert_map( target->addr_space, &temp );
+			addr_space_insert_map( target->addr_space, &msgbuf );
 			addr_space_set( cur->addr_space );
 
 			should_send = false;
 
 		} else {
+			addr_entry_t *buf  = (addr_entry_t *)msg->data;
+			*buf = msgbuf;
+			//memcpy( buf, &msgbuf, sizeof( addr_entry_t ));
+
 			should_send = true;
 		}
 	}
@@ -181,8 +219,13 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 
 		// memory control messages
 		case MESSAGE_TYPE_MAP_TO:
-			should_send = message_map_to( msg, target );
+			should_send = message_map_to( msg, target, MAP_IS_MAP );
 			break;
+
+		case MESSAGE_TYPE_GRANT_TO:
+			should_send = message_map_to( msg, target, MAP_IS_GRANT );
+			break;
+
 
 		// handle thread control messages
 		// TODO: once capabilities are implemented, check for proper
@@ -209,6 +252,7 @@ static inline bool kernel_msg_handle_recieve( message_t *msg ){
 
 	switch ( msg->type ){
 		case MESSAGE_TYPE_MAP_TO:
+		case MESSAGE_TYPE_GRANT_TO:
 			{
 				thread_t *cur = sched_current_thread( );
 				addr_entry_t *ent = (addr_entry_t *)msg->data;

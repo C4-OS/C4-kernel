@@ -77,6 +77,9 @@ void main( void ){
 		debug_print( &thing, "didn't find test...\n" );
 	}
 
+	c4_mem_map_to( thing.forth, allot_pages(1), (void *)0x12345000, 1,
+	               PAGE_READ | PAGE_WRITE );
+
 	c4_continue_thread( thing.forth );
 
 	server( &thing );
@@ -100,7 +103,8 @@ int elf_load( Elf32_Ehdr *elf, int display ){
 	int thread_id = c4_create_thread( entry, stack,
 	                                  THREAD_CREATE_FLAG_NEWMAP);
 
-	c4_mem_map_to( thread_id, from_stack, to_stack, 1, PAGE_READ|PAGE_WRITE );
+	c4_mem_grant_to( thread_id, from_stack, to_stack, 1,
+	                 PAGE_READ | PAGE_WRITE );
 
 	// load program headers
 	for ( unsigned i = 0; i < elf->e_phnum; i++ ){
@@ -116,7 +120,8 @@ int elf_load( Elf32_Ehdr *elf, int display ){
 		}
 
 		// TODO: translate elf permissions into message permissions
-		c4_mem_map_to( thread_id, databuf, addr, pages, PAGE_READ | PAGE_WRITE );
+		c4_mem_grant_to( thread_id, databuf, addr, pages,
+		                 PAGE_READ | PAGE_WRITE );
 	}
 
 	c4_continue_thread( thread_id );
@@ -381,6 +386,26 @@ int c4_mem_map_to( unsigned thread_id,
 
 	return c4_msg_send( &msg, thread_id );
 }
+
+int c4_mem_grant_to( unsigned thread_id,
+                     void *from,
+                     void *to,
+                     unsigned size,
+                     unsigned permissions )
+{
+	message_t msg = {
+		.type = MESSAGE_TYPE_GRANT_TO,
+		.data = {
+			(uintptr_t)from,
+			(uintptr_t)to,
+			(uintptr_t)size,
+			(uintptr_t)permissions,
+		},
+	};
+
+	return c4_msg_send( &msg, thread_id );
+}
+
 
 static bool c4_minift_sendmsg( minift_vm_t *vm ){
 	unsigned long target = minift_pop( vm, &vm->param_stack );

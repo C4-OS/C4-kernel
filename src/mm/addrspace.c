@@ -100,6 +100,29 @@ int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent ){
 	return 0;
 }
 
+int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent ){
+	uintptr_t v_start = ent->virtual  - (ent->virtual  % PAGE_SIZE);
+
+	// TODO: keep track of whether physical pages are still reserved
+	//       by other processes or not
+	//       alternatively, just give the kernel a fixed-size pool of memory
+	//       so it doesn't need to keep track
+	//page_reserve_phys_range( p_start, p_start + ent->size * PAGE_SIZE );
+	debug_printf( "removing mapping 0x%x of size %u\n", v_start, ent->size );
+
+	for ( uintptr_t page = 0; page < ent->size * PAGE_SIZE; page += PAGE_SIZE )
+	{
+		void *v = (void *)(v_start + page);
+
+		//map_phys_page( ent->permissions, v, p );
+		unmap_page( v );
+	}
+
+	addr_map_remove( space->map, ent );
+
+	return 0;
+}
+
 addr_map_t *addr_map_create( region_t *region ){
 	addr_map_t *ret = region_alloc( region );
 
@@ -234,7 +257,7 @@ addr_entry_t *addr_map_carve( addr_map_t *map, addr_entry_t *entry ){
 void addr_map_remove( addr_map_t *map, addr_entry_t *entry ){
 	unsigned index = ((uintptr_t)entry - (uintptr_t)map->map) / sizeof(*entry);
 
-	KASSERT( index >= ADDR_MAP_ENTRIES_PER_PAGE );
+	KASSERT( index <= ADDR_MAP_ENTRIES_PER_PAGE );
 	debug_printf( "removing index %u\n", index );
 
 	addr_map_shift_downwards( map, index );
