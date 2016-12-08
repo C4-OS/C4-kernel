@@ -79,6 +79,14 @@ make-msgbuf buffer
   "addr: " print-string hex cr
 ;
 
+0xffffbeef value list-start
+
+: dumpmaps-list
+  while dup list-start != begin
+    dumpmaps
+  repeat
+;
+
 : ls ( -- )
   "/" tarfind
   while dup c@ 0 != begin
