@@ -25,28 +25,9 @@ void forth_thread( void *sysinfo );
 void debug_print( struct foo *info, char *asdf );
 int  elf_load( Elf32_Ehdr *elf, int display );
 
-static void *allot_pages( unsigned pages ){
-	static uint8_t *s = (void *)0xd0001000;
-	void *ret = s;
-
-	s += pages * PAGE_SIZE;
-
-	return ret;
-}
-
-static void *allot_stack( unsigned pages ){
-	uint8_t *ret = allot_pages( pages );
-
-	ret += pages * PAGE_SIZE - 4;
-
-	return ret;
-}
-
-static void *stack_push( unsigned *stack, unsigned foo ){
-	*(stack--) = foo;
-
-	return stack;
-}
+static void *allot_pages( unsigned pages );
+static void *allot_stack( unsigned pages );
+static void *stack_push( unsigned *stack, unsigned foo );
 
 void main( void ){
 	struct foo thing;
@@ -87,6 +68,29 @@ void main( void ){
 	// TODO: panic or dump debug info or something, server()
 	//       should never return
 	for ( ;; );
+}
+
+static void *allot_pages( unsigned pages ){
+	static uint8_t *s = (void *)0xd0001000;
+	void *ret = s;
+
+	s += pages * PAGE_SIZE;
+
+	return ret;
+}
+
+static void *allot_stack( unsigned pages ){
+	uint8_t *ret = allot_pages( pages );
+
+	ret += pages * PAGE_SIZE - 4;
+
+	return ret;
+}
+
+static void *stack_push( unsigned *stack, unsigned foo ){
+	*(stack--) = foo;
+
+	return stack;
 }
 
 int elf_load( Elf32_Ehdr *elf, int display ){

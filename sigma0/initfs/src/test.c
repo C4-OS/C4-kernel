@@ -6,7 +6,7 @@ void _start( void *data ){
 	int ret;
 	uintptr_t display = (uintptr_t)data;
 
-	message_t msg = {
+	volatile message_t msg = {
 		.type = MESSAGE_TYPE_DEBUG_PRINT,
 		.data = { 'A', },
 	};
@@ -16,9 +16,10 @@ void _start( void *data ){
 	DO_SYSCALL( SYSCALL_RECIEVE, &msg, 0, 0, 0, ret );
 
 	msg.data[0] = 'A';
+	msg.type = 0xabcd;
 
 	while ( true ){
-		for ( volatile unsigned k = 0; k < 100000; k++ );
+		for ( volatile unsigned k = 0; k < 10000000; k++ );
 		DO_SYSCALL( SYSCALL_SEND, &msg, display, 0, 0, ret );
 	}
 }
