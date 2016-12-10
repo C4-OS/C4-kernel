@@ -1,104 +1,120 @@
 #include <c4/klib/string.h>
 #include <c4/arch/paging.h>
+#include <c4/arch/ioports.h>
 #include <c4/debug.h>
 #include <stdbool.h>
+#include <stdint.h>
 
+// listing of com io addresses
 enum {
-	WIDTH  = 80,
-	HEIGHT = 15,
+	SERIAL_COM1 = 0x3f8,
+	SERIAL_COM2 = 0x2f8,
+	SERIAL_COM3 = 0x3e8,
+	SERIAL_COM4 = 0x2e8,
+
+	SERIAL_DEFAULT = SERIAL_COM1,
 };
 
-typedef struct vga_char {
-	char text;
-	char color;
-} __attribute__((packed)) vga_char_t;
+// address offsets for various info
+enum {
+	// these two sets of ports alternate depending on the
+	// uppermost value of the SERIAL_LINE_CONTROL register
+	// this set is used when 0
+	SERIAL_DATA              = 0,
+	SERIAL_INTERRUPT_ENABLE  = 1,
 
-typedef struct vga_state {
-	vga_char_t *textbuf;
-	unsigned x;
-	unsigned y;
-} vga_state_t;
+	// and this when it's 1
+	SERIAL_DIVISOR_UPPER     = 0,
+	SERIAL_DIVISOR_LOWER     = 1,
 
-static void do_scroll( void ){
-	vga_char_t *vgatext = (void *)low_phys_to_virt( 0xb8000 );
+	// and the rest are unaffected
+	SERIAL_IDENT_CONTROL     = 2,
+	SERIAL_LINE_CONTROL      = 3,
+	SERIAL_MODEM_CONTROL     = 4,
+	SERIAL_LINE_STATUS       = 5,
+	SERIAL_MODEM_STATUS      = 6,
+	SERIAL_SCRATCH_REGISTER  = 7,
+};
 
-	for ( unsigned y = 1; y < HEIGHT; y++ ){
-		memcpy(
-			vgatext + WIDTH * (y - 1),
-			vgatext + WIDTH * y,
-			sizeof( vga_char_t[WIDTH] ));
+// fields in SERIAL_LINE_CONTROL register
+enum {
+	SERIAL_LINECTRL_DATASIZE_LOWER = (1 << 0),
+	SERIAL_LINECTRL_DATASIZE_UPPER = (1 << 1),
+	SERIAL_LINECTRL_STOPBITS       = (1 << 2),
+	SERIAL_LINECTRL_DLAB           = (1 << 7),
+};
 
-		memset( vgatext + WIDTH * y, 0, sizeof( vga_char_t[WIDTH] ));
-	}
+// fields in SERIAL_LINE_STATUS register
+enum {
+	SERIAL_LINESTAT_HAVE_DATA      = (1 << 0),
+	SERIAL_LINESTAT_TRANSMIT_EMPTY = (1 << 5),
+};
 
-	for ( unsigned x = 0; x < WIDTH; x++ ){
-		vga_char_t *c = vgatext + x + WIDTH * (HEIGHT);
+// fields in SERIAL_INTERRUPT_ENABLE register
+enum {
+	SERIAL_INTERRUPT_HAS_DATA       = (1 << 0),
+	SERIAL_INTERRUPT_TRANSMIT_EMPTY = (1 << 1),
+	SERIAL_INTERRUPT_ERROR          = (1 << 2),
+	SERIAL_INTERRUPT_STATUS_CHANGE  = (1 << 3),
+};
 
-		c->text = '=';
-		c->color = 0x7;
-	}
+static uint8_t read_register( unsigned port, unsigned reg ){
+	return inb( port + reg );
 }
 
-static void do_newline( vga_state_t *state ){
-	if ( ++state->y >= HEIGHT - 1 ){
-		state->y = HEIGHT - 1;
-		do_scroll( );
-	}
-
-	state->x = 0;
+static void write_register( unsigned port, unsigned reg, uint8_t value ){
+	outb( port + reg, value );
 }
 
-static void plot_char( vga_state_t *state, char c ){
-	vga_char_t *vgachar = state->textbuf + (WIDTH * state->y) + state->x;
+static void set_divisor( unsigned div ){
+	// store current line control register and set DLAB bit
+	uint8_t linectrl = read_register( SERIAL_DEFAULT, SERIAL_LINE_CONTROL );
+	linectrl |= SERIAL_LINECTRL_DLAB;
 
-	vgachar->text = c;
-	vgachar->color = 0x7 | 0x10;
+	// set divisor registers
+	write_register( SERIAL_DEFAULT, SERIAL_DIVISOR_UPPER, div >> 8 );
+	write_register( SERIAL_DEFAULT, SERIAL_DIVISOR_LOWER, div &  0xff );
 
-	if ( state->x + 1 >= WIDTH ){
-		do_newline( state );
-	}
-
-	state->x = (state->x + 1) % WIDTH;
+	// reset line control register
+	linectrl &= ~SERIAL_LINECTRL_DLAB;
+	write_register( SERIAL_DEFAULT, SERIAL_LINE_CONTROL, linectrl );
 }
 
-static void clear_screen( vga_state_t *state ){
-	memset( state->textbuf, 0, sizeof( vga_char_t[WIDTH * HEIGHT] ));
+static void set_charsize( unsigned charsize ){
+	uint8_t linectrl = read_register( SERIAL_DEFAULT, SERIAL_LINE_CONTROL );
+	unsigned val = charsize - 5;
+
+	linectrl |= val;
+
+	write_register( SERIAL_DEFAULT, SERIAL_LINE_CONTROL, linectrl );
+}
+
+static void set_interrupts( unsigned interrupts ){
+	write_register( SERIAL_DEFAULT, SERIAL_INTERRUPT_ENABLE, interrupts );
+}
+
+static bool serial_has_data( void ){
+	unsigned temp = read_register( SERIAL_DEFAULT, SERIAL_LINE_STATUS );
+
+	return temp & SERIAL_LINESTAT_HAVE_DATA;
+}
+
+static bool serial_can_transmit( void ){
+	unsigned temp = read_register( SERIAL_DEFAULT, SERIAL_LINE_STATUS );
+
+	return temp & SERIAL_LINESTAT_TRANSMIT_EMPTY;
 }
 
 void debug_putchar( int c ){
-	static vga_state_t state;
 	static bool initialized = false;
-	static bool pending_newline = false;
 
 	if ( !initialized ){
-		state = (vga_state_t){
-			.textbuf = (vga_char_t *)low_phys_to_virt( 0xb8000 ),
-			.x       = 0,
-			.y       = 0
-		};
-
-		clear_screen( &state );
-
+		set_charsize( 8 );    /* 8 bits */
+		set_divisor( 1 );     /* 115200 baud */
+		set_interrupts( 0 );  /* all disabled */
 		initialized = true;
 	}
 
-	if ( pending_newline ){
-		do_newline( &state );
-		pending_newline = false;
-	}
-
-	switch ( c ){
-		case '\n':
-			//do_newline( &state );
-			pending_newline = true;
-			break;
-
-		case '\r':
-			state.x = 0;
-			break;
-
-		default:
-			plot_char( &state, c );
-			break;
-	}
+	while ( !serial_can_transmit( ));
+	write_register( SERIAL_DEFAULT, SERIAL_DATA, c );
 }

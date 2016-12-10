@@ -22,4 +22,5 @@ clean:
 
 .PHONY: test
 test:
-	qemu-system-i386 -kernel ./c4-$(ARCH) -initrd ./c4-$(ARCH)-sigma0
+	qemu-system-i386 -kernel ./c4-$(ARCH) -initrd ./c4-$(ARCH)-sigma0 \
+		-serial stdio

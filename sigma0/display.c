@@ -3,7 +3,7 @@
 
 enum {
 	WIDTH  = 80,
-	START  = 16,
+	START  = 0,
 	HEIGHT = 25,
 };
 
@@ -51,6 +51,11 @@ void display_thread( void *unused ){
 		.x       = 0,
 		.y       = START,
 	};
+
+	for ( unsigned i = 0; i < WIDTH * HEIGHT; i++ ){
+		state.textbuf[i].text = ' ';
+		state.textbuf[i].color = 0;
+	}
 
 	while ( true ){
 		c4_msg_recieve( &msg, 0 );
