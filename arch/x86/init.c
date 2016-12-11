@@ -115,14 +115,14 @@ void sigma0_load( multiboot_module_t *module ){
 	uintptr_t code_end   = code_start + func_size +
 	                       (PAGE_SIZE - (func_size % PAGE_SIZE));
 	uintptr_t data_start = 0xd0000000;
-	uintptr_t data_end   = 0xd0010000;
+	uintptr_t data_end   = 0xd0800000;
 
 	void *func      = (void *)code_start;
 	void *new_stack = (void *)(data_start + 0xff8);
 
 	ent = (addr_entry_t){
 		.virtual     = code_start,
-		.physical    = 0x810000,
+		.physical    = 0x800000,
 		.size        = (code_end - code_start) / PAGE_SIZE,
 		.permissions = PAGE_READ | PAGE_WRITE,
 	};
@@ -131,7 +131,7 @@ void sigma0_load( multiboot_module_t *module ){
 
 	ent = (addr_entry_t){
 		.virtual     = data_start,
-		.physical    = 0x800000,
+		.physical    = 0x820000,
 		.size        = (data_end - data_start) / PAGE_SIZE,
 		.permissions = PAGE_READ | PAGE_WRITE,
 	};
@@ -163,15 +163,19 @@ void keyboard_handler( interrupt_frame_t *frame ){
 	bool key_up = !!(scancode & 0x80);
 	scancode &= ~0x80;
 
-	debug_printf( "ps2 keyboard: got scancode %u (%s)",
-		scancode, key_up? "release" : "press  " );
 
 	message_t msg = {
 		.type = 0xbeef,
 		.data = { scancode, key_up },
 	};
 
-	debug_printf( ", %s\n", message_try_send( &msg, 1 )? "sent" : "not sent" );
+	bool sent = message_try_send( &msg, 1 );
+
+	if ( !sent ){
+		debug_printf( "ps2 keyboard: got scancode %u (%s), not sent\n",
+					  scancode, key_up? "release" : "press  " );
+
+	}
 }
 
 multiboot_module_t *sigma0_find_module( multiboot_header_t *header ){

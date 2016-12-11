@@ -186,20 +186,12 @@ void *map_phys_page( unsigned perms, void *vaddr, void *raddr ){
 	page_dir_t *dir     = current_page_dir( );
 	page_table_t *table = page_current_table_entry( dirent );
 
-	if ( dir[dirent] ){
-		debug_printf( "have existing page directory entry for %p at %p\n",
-		  vaddr, dir[dirent] );
-
-	} else {
+	if ( !dir[dirent] ){
 		dir[dirent] =
 			(page_table_t)add_page_flags( alloc_phys_page( ), PAGE_WRITE );
-
-		debug_printf( "do not have a directory entry for %p, mapped %p\n",
-			  vaddr, dir[dirent] );
 	}
 
 	table[tableent] = (page_table_t)add_page_flags( raddr, perms );
-	debug_printf( "mapped %p for table entry\n", table[tableent] );
 
 	return (void *)vaddr;
 }
@@ -213,8 +205,9 @@ void unmap_page( void *vaddress ){
 
 	if ( dir[dirent] ){
 		if ( table[tableent] ){
+			// TODO: check to see if table is entirely empty,
+			//       and free the table if so
 			void *paddr = (void *)table[tableent];
-			debug_printf( "vaddress %p is mapped, unmapping...\n", vaddress );
 
 			table[tableent] = 0;
 			invalidate_page( paddr );
