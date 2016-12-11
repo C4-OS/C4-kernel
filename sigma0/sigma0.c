@@ -372,6 +372,26 @@ int c4_continue_thread( unsigned thread ){
 	return c4_msg_send( &buf, thread );
 }
 
+void *c4_request_physical( uintptr_t virt,
+                           uintptr_t physical,
+                           unsigned size,
+                           unsigned permissions )
+{
+	message_t msg = {
+		.type = MESSAGE_TYPE_REQUEST_PHYS,
+		.data = {
+			virt,
+			physical,
+			size,
+			permissions
+		},
+	};
+
+	c4_msg_send( &msg, 0 );
+
+	return (void *)virt;
+}
+
 int c4_mem_map_to( unsigned thread_id,
                    void *from,
                    void *to,

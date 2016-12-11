@@ -1,4 +1,5 @@
 #include <sigma0/sigma0.h>
+#include <c4/paging.h>
 #include <stdint.h>
 
 enum {
@@ -51,6 +52,9 @@ void display_thread( void *unused ){
 		.x       = 0,
 		.y       = START,
 	};
+
+	// request access to the vga text buffer
+	c4_request_physical( 0xb8000, 0xb8000, 1, PAGE_READ | PAGE_WRITE );
 
 	for ( unsigned i = 0; i < WIDTH * HEIGHT; i++ ){
 		state.textbuf[i].text = ' ';

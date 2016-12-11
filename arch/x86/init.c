@@ -139,15 +139,6 @@ void sigma0_load( multiboot_module_t *module ){
 	addr_space_insert_map( new_space, &ent );
 	debug_printf( "asdf: 0x%x\n", code_end );
 
-	ent = (addr_entry_t){
-		.virtual     = 0xb8000,
-		.physical    = 0xb8000,
-		.size        = 1,
-		.permissions = PAGE_READ | PAGE_WRITE,
-	};
-
-	addr_space_insert_map( new_space, &ent );
-
 	memcpy( func, sigma0_addr, func_size );
 
 	thread_t *new_thread =

@@ -192,6 +192,19 @@ static inline bool message_map_to( message_t *msg,
 	return should_send;
 }
 
+static inline void message_request_phys( message_t *msg ){
+	thread_t *current = sched_current_thread( );
+
+	addr_entry_t ent = (addr_entry_t){
+		.virtual     = msg->data[0],
+		.physical    = msg->data[1],
+		.size        = msg->data[2],
+		.permissions = msg->data[3],
+	};
+
+	addr_space_insert_map( current->addr_space, &ent );
+}
+
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 	thread_t *current = sched_current_thread( );
 	bool should_send = false;
@@ -226,6 +239,10 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			should_send = message_map_to( msg, target, MAP_IS_GRANT );
 			break;
 
+		case MESSAGE_TYPE_REQUEST_PHYS:
+			// TODO: access checks for this once capabilities are implemented
+			message_request_phys( msg );
+			break;
 
 		// handle thread control messages
 		// TODO: once capabilities are implemented, check for proper

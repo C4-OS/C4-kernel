@@ -32,6 +32,11 @@ int c4_mem_map_to( unsigned thread_id, void *from, void *to,
 int c4_mem_grant_to( unsigned thread_id, void *from, void *to,
                      unsigned size, unsigned permissions );
 
+void *c4_request_physical( uintptr_t virt,
+                           uintptr_t physical,
+                           unsigned size,
+                           unsigned permissions );
+
 char decode_scancode( unsigned long code );
 
 #endif
