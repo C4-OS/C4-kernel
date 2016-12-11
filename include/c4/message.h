@@ -23,9 +23,15 @@ enum {
 	MESSAGE_TYPE_END,
 	MESSAGE_TYPE_KILL,
 
+	// hardware interface messages
+	MESSAGE_TYPE_INTERRUPT,
+
 	// end of kernel-reserved ipc types, users can define their own
 	// types after this.
 	MESSAGE_TYPE_END_RESERVED = 0x100,
+
+	// mask for specifying that an interrupt should be listened for
+	MESSAGE_INTERRUPT_MASK    = 0xfff80000,
 };
 
 typedef struct message {
@@ -34,7 +40,7 @@ typedef struct message {
 	unsigned long data[6];
 } message_t;
 
-void message_recieve( message_t *msg );
+void message_recieve( message_t *msg, unsigned from );
 bool message_try_send( message_t *msg, unsigned id );
 void message_send( message_t *msg, unsigned id );
 

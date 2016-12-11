@@ -28,7 +28,7 @@ void test_thread_client( void ){
 		message_t buf;
 
 		//debug_printf( "sup man\n"j);
-		message_recieve( &buf );
+		message_recieve( &buf, 0 );
 
 		debug_printf( "got a message from %u: %u, type: 0x%x\n",
 		              buf.sender, buf.data[0], buf.type );
@@ -47,7 +47,7 @@ void test_thread_meh( void ){
 			sched_thread_yield( );
 		}
 
-		message_recieve( &buf );
+		message_recieve( &buf, 0 );
 
 		debug_printf( ">>> buzz, %u\n", buf.data[0] );
 	}

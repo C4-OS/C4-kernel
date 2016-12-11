@@ -6,6 +6,7 @@ k-obj += src/thread.o
 k-obj += src/scheduler.o
 k-obj += src/message.o
 k-obj += src/syscall.o
+k-obj += src/interrupts.o
 k-obj += src/mm/region.o
 k-obj += src/mm/slab.o
 k-obj += src/mm/addrspace.o

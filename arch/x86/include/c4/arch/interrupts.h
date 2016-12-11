@@ -2,6 +2,11 @@
 #define _C4_ARCH_INTERRUPTS_H 1
 #include <stdint.h>
 
+// some meta info about interrupts
+enum {
+	INTERRUPT_MAX = 256,
+};
+
 enum {
 	INTR_DESC_TYPE_TASK       = 0x5,
 	INTR_DESC_TYPE_INTERRUPT  = 0x6,

@@ -96,7 +96,7 @@ static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d ){
 	return 0;
 }
 
-static int syscall_recieve( arg_t buffer, arg_t b, arg_t c, arg_t d ){
+static int syscall_recieve( arg_t buffer, arg_t from, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
 	//unsigned id = sched_current_thread()->id;
 
@@ -107,7 +107,7 @@ static int syscall_recieve( arg_t buffer, arg_t b, arg_t c, arg_t d ){
 		return -1;
 	}
 
-	message_recieve( msg );
+	message_recieve( msg, from );
 
 	return 0;
 }

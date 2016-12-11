@@ -24,3 +24,8 @@ clean:
 test:
 	qemu-system-i386 -kernel ./c4-$(ARCH) -initrd ./c4-$(ARCH)-sigma0 \
 		-serial stdio -m 32
+
+.PHONY: debug
+debug:
+	qemu-system-i386 -kernel ./c4-$(ARCH) -initrd ./c4-$(ARCH)-sigma0 \
+		-serial stdio -m 32 -s

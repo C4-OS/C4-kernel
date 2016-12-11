@@ -3,6 +3,7 @@
 #include <c4/arch/syscall.h>
 #include <c4/klib/string.h>
 #include <c4/debug.h>
+#include <c4/interrupts.h>
 #include <stdbool.h>
 
 static interrupt_gate_t intr_table[256];
@@ -107,12 +108,10 @@ void init_interrupts( void ){
 
 void isr_dispatch( interrupt_frame_t *frame ){
 	intr_stats[frame->intr_num]++;
-	//debug_printf( "interrupts are working! frame at %p\n", frame );
-	/*
-	debug_printf( "got interrupt %u, call %u \n",
-				  frame->intr_num,
-				  intr_stats[frame->intr_num] );
-	  */
+
+	// call the general interrupt callback handler, for interrupt operations
+	// which aren't implementation-specific
+	interrupt_callback( frame->intr_num, 0 );
 
 	if ( intr_handlers[frame->intr_num] ){
 		intr_handlers[frame->intr_num]( frame );

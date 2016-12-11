@@ -4,42 +4,50 @@
 #include <c4/arch/scheduler.h>
 #include <c4/klib/string.h>
 #include <stdbool.h>
+#include <c4/interrupts.h>
 
 static inline bool is_kernel_msg( message_t *msg ){
 	return msg->type < MESSAGE_TYPE_END_RESERVED;
 }
 
+static inline bool is_interrupt_msg( unsigned from ){
+	return (from & MESSAGE_INTERRUPT_MASK) == MESSAGE_INTERRUPT_MASK;
+}
+
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target );
 static inline bool kernel_msg_handle_recieve( message_t *msg );
 
-void message_recieve( message_t *msg ){
+void message_recieve( message_t *msg, unsigned from ){
 	thread_t *cur = sched_current_thread( );
 
 retry:
+	// handle interrupt listeners
+	if ( is_interrupt_msg( from )){
+		interrupt_listen( from - MESSAGE_INTERRUPT_MASK, cur );
+		sched_thread_yield( );
+	}
+
 	if ( (cur->flags & SCHED_FLAG_PENDING_MSG) == 0 ){
 		thread_t *sender = thread_list_pop( &cur->waiting );
 
+		// if there's a thread in the queue, copy it's message to the buffer
+		// and requeue it in the scheduler
 		if ( sender ){
-			// NOTE: copying into the thread's message buffer despite
-			//       being able to copy into the user buffer directly,
-			//       due to kernel message prcessing that happens below.
-			//
-			//       while it might be fine to copy directly anyway,
-			//       doing kernel work with user-controlled buffers would
-			//       probably be a bad idea...
-			//*msg = sender->message;
 			cur->message = sender->message;
 			sender->state = SCHED_STATE_RUNNING;
 
 			sched_add_thread( sender );
 
+		// otherwise block the thread and wait for a message to be recieved.
+		// since the state is set to 'waiting', it won't be run again
+		// until a message is recieved
 		} else {
 			cur->state = SCHED_STATE_WAITING;
 			sched_thread_yield( );
 			goto retry;
 		}
-
 	}
+
 
 	if ( is_kernel_msg( &cur->message )){
 		kernel_msg_handle_recieve( &cur->message );
@@ -86,12 +94,6 @@ bool message_try_send( message_t *msg, unsigned id ){
 }
 
 void message_send( message_t *msg, unsigned id ){
-	/*
-	while ( !message_try_send( msg, id )){
-		sched_thread_yield( );
-	}
-	*/
-
 	// try to copy the message buffer to the target thread,
 	// or put thread into the target's waiting list if it can't.
 	//
@@ -257,6 +259,10 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			sched_thread_stop( target );
 			break;
 
+		case MESSAGE_TYPE_INTERRUPT:
+			should_send = true;
+			break;
+
 		default:
 			break;
 	}
@@ -265,8 +271,6 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 }
 
 static inline bool kernel_msg_handle_recieve( message_t *msg ){
-	debug_printf( "got here man\n" );
-
 	switch ( msg->type ){
 		case MESSAGE_TYPE_MAP_TO:
 		case MESSAGE_TYPE_GRANT_TO:

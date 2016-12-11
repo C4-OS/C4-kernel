@@ -44,7 +44,7 @@ void main( void ){
 	c4_continue_thread( thing.display );
 
 	tar_header_t *arc = tar_initfs;
-	tar_header_t *test = tar_lookup( arc, "sigma0/initfs/bin/test" );
+	tar_header_t *test = tar_lookup( arc, "sigma0/initfs/bin/interrupts" );
 
 	if ( test ){
 		debug_print( &thing, "tar: found test file, loading...\n" );
