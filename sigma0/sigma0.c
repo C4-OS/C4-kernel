@@ -74,6 +74,14 @@ static void *stack_push( unsigned *stack, unsigned foo ){
 	return stack;
 }
 
+static inline void elf_load_set_arg( uint8_t *stack,
+                                     unsigned offset,
+                                     unsigned arg,
+                                     unsigned value )
+{
+	*((unsigned *)(stack + offset) + arg + 1) = value;
+}
+
 int elf_load( Elf32_Ehdr *elf, int display ){
 	unsigned stack_offset = 0xff8;
 
@@ -82,8 +90,8 @@ int elf_load( Elf32_Ehdr *elf, int display ){
 	void *from_stack = (uint8_t *)allot_pages(1);
 	void *stack      = (uint8_t *)to_stack + stack_offset;
 
-	// copy the output pointer to the new stack
-	*(unsigned *)((uint8_t *)from_stack + stack_offset + 4) = (unsigned)display;
+	// copy the output info to the new stack
+	elf_load_set_arg( from_stack, stack_offset, 0, display );
 
 	int thread_id = c4_create_thread( entry, stack,
 	                                  THREAD_CREATE_FLAG_NEWMAP);
@@ -94,7 +102,7 @@ int elf_load( Elf32_Ehdr *elf, int display ){
 	// load program headers
 	for ( unsigned i = 0; i < elf->e_phnum; i++ ){
 		Elf32_Phdr *header = elf_get_phdr( elf, i );
-		uint8_t *progdata  = (uint8_t *)((uintptr_t)elf + header->p_offset );
+		uint8_t *progdata  = (uint8_t *)elf + header->p_offset;
 		void    *addr      = (void *)header->p_vaddr;
 		unsigned pages     = header->p_memsz / PAGE_SIZE
 		                   + header->p_memsz % PAGE_SIZE > 0;
