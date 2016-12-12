@@ -95,6 +95,13 @@ make-msgbuf buffer
   repeat
 ;
 
+: exec ( program-path -- )
+  "loading elf executable: " print-string dup print-string cr
+  tarfind elfload drop
+;
+
+( initial program list to bootstrap the system )
+"sigma0/initfs/bin/interrupts" exec
 
 "All systems are go, good luck" print-string cr
 

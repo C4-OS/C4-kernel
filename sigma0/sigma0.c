@@ -39,28 +39,9 @@ void main( void ){
 	s = allot_stack( 2 );
 	s = stack_push( s, (unsigned)&thing );
 
-	thing.forth = c4_create_thread( forth_thread, s, THREAD_CREATE_FLAG_CLONE);
+	thing.forth = c4_create_thread( forth_thread, s, 0 );
 
 	c4_continue_thread( thing.display );
-
-	tar_header_t *arc = tar_initfs;
-	tar_header_t *test = tar_lookup( arc, "sigma0/initfs/bin/interrupts" );
-
-	if ( test ){
-		debug_print( &thing, "tar: found test file, loading...\n" );
-
-		uint8_t  *data = tar_data( test );
-		unsigned  size = tar_data_size( test );
-
-		elf_load( (void *)data, 2 );
-
-	} else {
-		debug_print( &thing, "didn't find test...\n" );
-	}
-
-	c4_mem_map_to( thing.forth, allot_pages(1), (void *)0x12345000, 1,
-	               PAGE_READ | PAGE_WRITE );
-
 	c4_continue_thread( thing.forth );
 
 	server( &thing );
@@ -280,6 +261,7 @@ static bool c4_minift_recvmsg( minift_vm_t *vm );
 static bool c4_minift_tarfind( minift_vm_t *vm );
 static bool c4_minift_tarsize( minift_vm_t *vm );
 static bool c4_minift_tarnext( minift_vm_t *vm );
+static bool c4_minift_elfload( minift_vm_t *vm );
 
 static minift_archive_entry_t c4_words[] = {
 	{ "sendmsg", c4_minift_sendmsg, 0 },
@@ -287,6 +269,7 @@ static minift_archive_entry_t c4_words[] = {
 	{ "tarfind", c4_minift_tarfind, 0 },
 	{ "tarsize", c4_minift_tarsize, 0 },
 	{ "tarnext", c4_minift_tarnext, 0 },
+	{ "elfload", c4_minift_elfload, 0 },
 };
 
 void forth_thread( void *sysinfo ){
@@ -496,5 +479,17 @@ static bool c4_minift_tarnext( minift_vm_t *vm ){
 	temp = tar_next( temp );
 	minift_push( vm, &vm->param_stack, (unsigned long)temp );
 
+	return true;
+}
+
+static bool c4_minift_elfload( minift_vm_t *vm ){
+	tar_header_t *temp = (tar_header_t *)minift_pop( vm, &vm->param_stack );
+
+	void *data = tar_data( temp );
+	// TODO: change this once a generic structure for passing info to new
+	//       threads is implemented
+	int id = elf_load( data, 2 );
+
+	minift_push( vm, &vm->param_stack, id );
 	return true;
 }
