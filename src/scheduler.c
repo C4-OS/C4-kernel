@@ -42,7 +42,10 @@ void sched_switch_thread( void ){
 	thread_t *next;
 	thread_t *start;
 
-	if ( !current_thread || current_thread == global_idle_thread ){
+	if ( !current_thread
+	  || current_thread == global_idle_thread
+	  || current_thread->sched.list != &sched_list )
+	{
 		next  = sched_list.first->thread;
 		start = next;
 
