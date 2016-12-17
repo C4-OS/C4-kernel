@@ -496,7 +496,7 @@ static bool c4_minift_elfload( minift_vm_t *vm ){
 	void *data = tar_data( temp );
 	// TODO: change this once a generic structure for passing info to new
 	//       threads is implemented
-	int id = elf_load( data, 2 );
+	int id = elf_load( data, 1 );
 
 	minift_push( vm, &vm->param_stack, id );
 	return true;

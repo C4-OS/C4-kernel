@@ -149,26 +149,6 @@ void sigma0_load( multiboot_module_t *module ){
 	sched_add_thread( new_thread );
 }
 
-void keyboard_handler( interrupt_frame_t *frame ){
-	unsigned scancode = inb( 0x60 );
-	bool key_up = !!(scancode & 0x80);
-	scancode &= ~0x80;
-
-
-	message_t msg = {
-		.type = 0xbeef,
-		.data = { scancode, key_up },
-	};
-
-	bool sent = message_try_send( &msg, 1 );
-
-	if ( !sent ){
-		debug_printf( "ps2 keyboard: got scancode %u (%s), not sent\n",
-					  scancode, key_up? "release" : "press  " );
-
-	}
-}
-
 multiboot_module_t *sigma0_find_module( multiboot_header_t *header ){
 	multiboot_module_t *ret = NULL;
 
@@ -238,7 +218,6 @@ void arch_init( multiboot_header_t *header ){
 	sched_add_thread( thread_create_kthread( test_thread_client ));
 
 	register_interrupt( INTERRUPT_TIMER,    timer_handler );
-	register_interrupt( INTERRUPT_KEYBOARD, keyboard_handler );
 
 	asm volatile ( "sti" );
 

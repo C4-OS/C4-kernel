@@ -13,12 +13,19 @@ static int syscall_send( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_recieve( arg_t a, arg_t b, arg_t c, arg_t d );
 
+// XXX: syscall to interact with i/o ports on behalf of the user thread
+//      will need to consider how to safely make the in*/out* instructions
+//      accessible in usermode, on x86(_64), since this will definitely
+//      cause issues when writing more complex drivers
+static int syscall_ioport( arg_t a, arg_t b, arg_t c, arg_t d );
+
 static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_exit,
 	syscall_create_thread,
 	syscall_send,
 	syscall_send_async,
 	syscall_recieve,
+	syscall_ioport,
 };
 
 int syscall_dispatch( unsigned num, arg_t a, arg_t b, arg_t c, arg_t d ){
@@ -112,3 +119,29 @@ static int syscall_recieve( arg_t buffer, arg_t from, arg_t c, arg_t d ){
 	return 0;
 }
 
+// TODO: seriously this needs to be removed one day, don't forget!
+#ifdef __i386__
+#include <c4/arch/ioports.h>
+#endif
+
+static int syscall_ioport( arg_t action, arg_t port, arg_t value, arg_t d ){
+#ifdef __i386__
+	debug_printf( "doing io stuff: %u, port %u, value %u\n",
+	              action, port, value );
+	switch ( action ){
+		case SYSCALL_IO_INPUT:
+			return inb( port );
+			break;
+
+		case SYSCALL_IO_OUTPUT:
+			outb( port, value );
+			return 0;
+			break;
+
+		default: break;
+	}
+#endif
+
+	// TODO: return proper error
+	return -1;
+}

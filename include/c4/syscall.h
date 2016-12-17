@@ -8,7 +8,14 @@ enum {
 	SYSCALL_SEND,
 	SYSCALL_SEND_ASYNC,
 	SYSCALL_RECIEVE,
+	SYSCALL_IOPORT,
 	SYSCALL_MAX,
+};
+
+// XXX: architecture-specific workaround, will need to be removed in the future
+enum {
+	SYSCALL_IO_INPUT,
+	SYSCALL_IO_OUTPUT,
 };
 
 // called from the appropriate syscall interface for the platform,
