@@ -48,7 +48,6 @@ retry:
 		}
 	}
 
-
 	if ( is_kernel_msg( &cur->message )){
 		kernel_msg_handle_recieve( &cur->message );
 	}
@@ -113,6 +112,14 @@ void message_send( message_t *msg, unsigned id ){
 			sched_thread_yield( );
 		}
 	}
+}
+
+bool message_send_async( message_t *msg, unsigned to ){
+	return true;
+}
+
+void message_recieve_async( message_t *msg, unsigned flags ){
+
 }
 
 enum {

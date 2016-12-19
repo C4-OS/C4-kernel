@@ -44,4 +44,7 @@ void message_recieve( message_t *msg, unsigned from );
 bool message_try_send( message_t *msg, unsigned id );
 void message_send( message_t *msg, unsigned id );
 
+bool message_send_async( message_t *msg, unsigned to );
+void message_recieve_async( message_t *msg, unsigned flags );
+
 #endif

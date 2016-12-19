@@ -349,7 +349,7 @@ int c4_msg_recieve( message_t *buffer, unsigned from ){
 	return ret;
 }
 
-int c4_create_thread( void (*entry)(void *), void *stack, unsigned flags ){
+int c4_create_thread( void *entry, void *stack, unsigned flags ){
 	int ret = 0;
 
 	DO_SYSCALL( SYSCALL_CREATE_THREAD, entry, stack, flags, 0, ret );
