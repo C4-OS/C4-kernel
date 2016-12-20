@@ -13,14 +13,12 @@ void thread_set_init_state( thread_t *thread,
 {
 	memset( thread, 0, sizeof( thread_t ));
 
-	uint32_t *new_stack = stack;
 	uint8_t *kern_stack = region_alloc( region_get_global( ));
 
 	KASSERT( kern_stack != NULL );
 
-	thread->stack         = new_stack;
 	thread->kernel_stack  = kern_stack + PAGE_SIZE;
-	thread->registers.esp = (uint32_t)new_stack;
+	thread->registers.esp = (uint32_t)stack;
 	thread->registers.eip = (uint32_t)entry;
 	thread->registers.do_user_switch = !!(flags & THREAD_FLAG_USER);
 }

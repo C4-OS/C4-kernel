@@ -35,7 +35,6 @@ thread_t *thread_create( void (*entry)(void),
 	ret->intern.thread = ret;
 
 	ret->id         = thread_counter++;
-	ret->task_id    = 1;
 	ret->addr_space = space;
 	ret->flags      = flags;
 

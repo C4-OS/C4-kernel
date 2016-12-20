@@ -222,12 +222,11 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 		// intercepts message and prints, without sending to the reciever
 		case MESSAGE_TYPE_DEBUG_PRINT:
 			debug_printf(
-				"[ipc] debug message, from thread %u (task %u)\n"
+				"[ipc] debug message, from thread %u\n"
 				"      data[0]: 0x%x\n"
 				"      data[1]: 0x%x\n"
 				"      data[2]: 0x%x\n",
-				current->id, current->task_id,
-				msg->data[0], msg->data[1], msg->data[2] );
+				current->id, msg->data[0], msg->data[1], msg->data[2] );
 			break;
 
 		case MESSAGE_TYPE_DUMP_MAPS:

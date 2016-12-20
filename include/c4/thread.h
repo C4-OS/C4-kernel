@@ -35,21 +35,18 @@ typedef struct thread_node {
 typedef struct thread {
 	thread_regs_t registers;
 	addr_space_t  *addr_space;
+	void          *kernel_stack;
 
 	thread_node_t intern;
 	thread_node_t sched;
 	thread_list_t waiting;
 
-	void          *stack;
-	void          *kernel_stack;
-
-	message_t     message;
-
 	unsigned id;
-	unsigned task_id;
 	unsigned priority;
 	unsigned state;
 	unsigned flags;
+
+	message_t message;
 } thread_t;
 
 void init_threading( void );
