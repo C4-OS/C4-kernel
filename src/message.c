@@ -1,10 +1,12 @@
 #include <c4/message.h>
 #include <c4/scheduler.h>
 #include <c4/debug.h>
-#include <c4/arch/scheduler.h>
-#include <c4/klib/string.h>
-#include <stdbool.h>
+#include <c4/common.h>
 #include <c4/interrupts.h>
+#include <c4/klib/string.h>
+#include <c4/arch/scheduler.h>
+#include <c4/mm/slab.h>
+#include <stdbool.h>
 
 static inline bool is_kernel_msg( message_t *msg ){
 	return msg->type < MESSAGE_TYPE_END_RESERVED;
@@ -114,12 +116,116 @@ void message_send( message_t *msg, unsigned id ){
 	}
 }
 
+static inline void message_queue_insert( message_queue_t *queue,
+                                          message_node_t  *node )
+{
+	KASSERT( node != NULL );
+
+	if ( queue->first ){
+		queue->last->next = node;
+		queue->last       = node;
+
+	} else {
+		queue->first = queue->last = node;
+	}
+
+	queue->elements++;
+	node->next = NULL;
+}
+
+static inline message_node_t *message_queue_remove( message_queue_t *queue ){
+	message_node_t *ret = NULL;
+
+	if ( queue->first ){
+		ret = queue->first;
+		queue->first = queue->first->next;
+
+		if ( !queue->first ){
+			queue->last = NULL;
+		}
+
+		queue->elements--;
+	}
+
+	return ret;
+}
+
+static slab_t message_node_slab;
+
+static message_node_t *message_node_alloc( message_t *msg ){
+	static bool initialized = false;
+
+	if ( !initialized ){
+		slab_init_at( &message_node_slab, region_get_global(),
+		              sizeof( message_node_t ), NULL, NULL );
+
+		initialized = true;
+	}
+
+	message_node_t *ret = slab_alloc( &message_node_slab );
+	KASSERT( ret != NULL );
+
+	ret->message = *msg;
+
+	return ret;
+}
+
+static void message_node_free( message_node_t *node ){
+	slab_free( &message_node_slab, node );
+}
+
 bool message_send_async( message_t *msg, unsigned to ){
+	thread_t *target  = thread_get_id( to );
+	thread_t *current = sched_current_thread( );
+
+	debug_printf( "send async: sending to %u\n", to );
+
+	if ( !target ){
+		debug_printf( "[ipc] invalid message target, %u -> %u, returning\n",
+		              current->id, to );
+		return false;
+	}
+
+	if ( target->async_queue.elements >= MESSAGE_MAX_QUEUE_ELEMENTS ){
+		debug_printf( "[ipc] async queue full, can't send from %u -> %u\n",
+		              current->id, to );
+		return false;
+	}
+
+	// TODO: capability checks, once implemented
+	message_queue_insert( &target->async_queue, message_node_alloc( msg ));
+
+	if ( target->state == SCHED_STATE_WAITING ){
+		target->state = SCHED_STATE_RUNNING;
+	}
+
+	debug_printf( "got here\n" );
+
 	return true;
 }
 
-void message_recieve_async( message_t *msg, unsigned flags ){
+bool message_recieve_async( message_t *msg, unsigned flags ){
+	thread_t *current = sched_current_thread( );
+	message_node_t *node;
 
+retry:
+	node = message_queue_remove( &current->async_queue );
+
+	if ( node ){
+		*msg = node->message;
+		message_node_free( node );
+		return true;
+
+	} else if ( flags & MESSAGE_ASYNC_BLOCK ){
+		// same as message_recieve(), the sender will set the thread's state
+		// to 'running' whenever they get around to sending a message
+		debug_printf( "recieve async blocked\n", flags );
+		current->state = SCHED_STATE_WAITING;
+		sched_thread_yield( );
+		goto retry;
+	}
+
+	return false;
 }
 
 enum {

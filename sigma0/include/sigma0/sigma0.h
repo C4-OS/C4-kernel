@@ -24,6 +24,8 @@ void server( void * );
 void display_thread( void *unused );
 int c4_msg_send( message_t *buffer, unsigned target );
 int c4_msg_recieve( message_t *buffer, unsigned whom );
+int c4_msg_send_async( message_t *buffer, unsigned target );
+int c4_msg_recieve_async( message_t *buffer, unsigned flags );
 int c4_create_thread( void *entry, void *stack, unsigned flags );
 int c4_continue_thread( unsigned thread );
 

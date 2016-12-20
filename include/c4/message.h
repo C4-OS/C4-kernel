@@ -34,17 +34,42 @@ enum {
 	MESSAGE_INTERRUPT_MASK    = 0xfff80000,
 };
 
+// flags for asyncronous messages, used at message_recieve_async
+enum {
+	MESSAGE_ASYNC_BLOCK = 1,
+};
+
+// various constants
+enum {
+	MESSAGE_MAX_QUEUE_ELEMENTS = 64,
+};
+
 typedef struct message {
 	unsigned type;
 	unsigned sender;
 	unsigned long data[6];
 } message_t;
 
+// TODO: consider implementing generic linked list structure, or macro library
+//       or something
+typedef struct message_node {
+	struct message_node *next;
+
+	message_t message;
+} message_node_t;
+
+typedef struct message_queue {
+	message_node_t *first;
+	message_node_t *last;
+
+	unsigned elements;
+} message_queue_t;
+
 void message_recieve( message_t *msg, unsigned from );
 bool message_try_send( message_t *msg, unsigned id );
 void message_send( message_t *msg, unsigned id );
 
 bool message_send_async( message_t *msg, unsigned to );
-void message_recieve_async( message_t *msg, unsigned flags );
+bool message_recieve_async( message_t *msg, unsigned flags );
 
 #endif

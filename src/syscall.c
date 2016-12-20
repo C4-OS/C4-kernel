@@ -10,8 +10,9 @@ typedef int (*syscall_func_t)( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_exit( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_create_thread( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_send( arg_t a, arg_t b, arg_t c, arg_t d );
-static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_recieve( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_recieve_async( arg_t a, arg_t b, arg_t c, arg_t d );
 
 // XXX: syscall to interact with i/o ports on behalf of the user thread
 //      will need to consider how to safely make the in*/out* instructions
@@ -23,8 +24,9 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_exit,
 	syscall_create_thread,
 	syscall_send,
-	syscall_send_async,
 	syscall_recieve,
+	syscall_send_async,
+	syscall_recieve_async,
 	syscall_ioport,
 };
 
@@ -99,10 +101,6 @@ static int syscall_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
 	return 0;
 }
 
-static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d ){
-	return 0;
-}
-
 static int syscall_recieve( arg_t buffer, arg_t from, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
 	//unsigned id = sched_current_thread()->id;
@@ -118,6 +116,32 @@ static int syscall_recieve( arg_t buffer, arg_t from, arg_t c, arg_t d ){
 
 	return 0;
 }
+
+static int syscall_send_async( arg_t buffer, arg_t to, arg_t c, arg_t d ){
+	message_t *msg = (message_t *)buffer;
+
+	if ( !is_user_address( msg )){
+		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
+
+		return false;
+	}
+
+	return message_send_async( msg, to );
+}
+
+static int syscall_recieve_async( arg_t buffer, arg_t flags, arg_t c, arg_t d )
+{
+	message_t *msg = (message_t *)buffer;
+
+	if ( !is_user_address( msg )){
+		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
+
+		return false;
+	}
+
+	return message_recieve_async( msg, flags );
+}
+
 
 // TODO: seriously this needs to be removed one day, don't forget!
 #ifdef __i386__

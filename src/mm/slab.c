@@ -104,7 +104,7 @@ retry:
 		int n = bitmap_first_free( &block->map, BITMAP_BPS );
 		uintptr_t addr = (uintptr_t)block + n * slab->obj_size;
 
-		debug_printf( "bitmap: 0x%x, location: %d, pages: %u\n",
+		debug_printf( "bitmap: 0x%x, location: %u, pages: %u\n",
 			block->map, n, slab->total_pages );
 
 		bitmap_set( &block->map, n );

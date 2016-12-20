@@ -46,7 +46,8 @@ typedef struct thread {
 	unsigned state;
 	unsigned flags;
 
-	message_t message;
+	message_t       message;
+	message_queue_t async_queue;
 } thread_t;
 
 void init_threading( void );
