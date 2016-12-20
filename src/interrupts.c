@@ -4,35 +4,28 @@
 #include <c4/scheduler.h>
 #include <c4/debug.h>
 
-static thread_list_t listening_threads[INTERRUPT_MAX];
+static unsigned listening_threads[INTERRUPT_MAX];
 
 void interrupt_callback( unsigned num, unsigned flags ){
-	thread_t *thread = thread_list_pop( listening_threads + num );
+	if ( listening_threads[num] == 0 )
+		return;
 
-	for ( ; thread; thread = thread_list_pop( listening_threads + num )){
-		message_t msg = {
-			.type = MESSAGE_TYPE_INTERRUPT,
-			.data = {
-				num,
-			}
-		};
+	thread_t *thread = thread_get_id( listening_threads[num] );
 
-		debug_printf( "got here, sending interrupt %u to %u\n",
-		              num, thread->id );
-
-		// send thread a message and place it back in running list
-
-		// TODO: maybe change message_try_send() to take a thread_t argument
-		//       rather than a thread id, so it doesn't have to unnecessarily
-		//       do thread lookups
-		if ( !message_try_send( &msg, thread->id )){
-			debug_printf( "warning: interrupt %u was not sent to thread %u\n",
-			              num, thread->id );
+	message_t msg = {
+		.type = MESSAGE_TYPE_INTERRUPT,
+		.data = {
+			num,
 		}
+	};
 
-		thread->state = SCHED_STATE_RUNNING;
-		sched_add_thread( thread );
-	}
+	debug_printf( "got here, sending interrupt %u to %u\n",
+				  num, thread->id );
+
+	// TODO: maybe change message_send_async() to take a thread_t argument
+	//       rather than a thread id, so it doesn't have to unnecessarily
+	//       do thread lookups
+	message_send_async( &msg, thread->id );
 }
 
 int interrupt_listen( unsigned num, thread_t *thread ){
@@ -44,10 +37,8 @@ int interrupt_listen( unsigned num, thread_t *thread ){
 	debug_printf( "got here, thread %u listening for interrupt %u\n",
 				  thread->id, num );
 
-	thread_list_remove( &thread->sched );
-	thread_list_insert( listening_threads + num, &thread->sched );
-
-	thread->state = SCHED_STATE_WAITING;
+	// TODO: store a list of threads to send a message to
+	listening_threads[num] = thread->id;
 
 	return 0;
 }

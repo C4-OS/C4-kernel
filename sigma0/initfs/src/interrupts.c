@@ -27,16 +27,26 @@ int c4_msg_send( message_t *buffer, unsigned to ){
 	return ret;
 }
 
+int c4_msg_recieve_async( message_t *buffer, unsigned flags ){
+	int ret = 0;
+
+	DO_SYSCALL( SYSCALL_RECIEVE_ASYNC, buffer, flags, 0, 0, ret );
+
+	return ret;
+}
+
 void _start( void *data ){
 	uintptr_t display = (uintptr_t)data;
-	int ret;
 
-	message_t msg;
+	message_t msg = {
+		.type = MESSAGE_TYPE_INTERRUPT_SUBSCRIBE,
+		.data = { INTERRUPT_KEYBOARD, },
+	};
+
+	c4_msg_send( &msg, 0 );
 
 	while ( true ){
-		unsigned from = MESSAGE_INTERRUPT_MASK | INTERRUPT_KEYBOARD;
-
-		DO_SYSCALL( SYSCALL_RECIEVE, &msg, from, 0, 0, ret );
+		c4_msg_recieve_async( &msg, MESSAGE_ASYNC_BLOCK );
 
 		unsigned scancode = c4_inbyte( 0x60 );
 		bool     key_up   = !!(scancode & 0x80);

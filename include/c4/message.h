@@ -25,13 +25,12 @@ enum {
 
 	// hardware interface messages
 	MESSAGE_TYPE_INTERRUPT,
+	MESSAGE_TYPE_INTERRUPT_SUBSCRIBE,
+	MESSAGE_TYPE_INTERRUPT_UNSUBSCRIBE,
 
 	// end of kernel-reserved ipc types, users can define their own
 	// types after this.
 	MESSAGE_TYPE_END_RESERVED = 0x100,
-
-	// mask for specifying that an interrupt should be listened for
-	MESSAGE_INTERRUPT_MASK    = 0xfff80000,
 };
 
 // flags for asyncronous messages, used at message_recieve_async

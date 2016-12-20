@@ -12,10 +12,6 @@ static inline bool is_kernel_msg( message_t *msg ){
 	return msg->type < MESSAGE_TYPE_END_RESERVED;
 }
 
-static inline bool is_interrupt_msg( unsigned from ){
-	return (from & MESSAGE_INTERRUPT_MASK) == MESSAGE_INTERRUPT_MASK;
-}
-
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target );
 static inline bool kernel_msg_handle_recieve( message_t *msg );
 
@@ -23,12 +19,6 @@ void message_recieve( message_t *msg, unsigned from ){
 	thread_t *cur = sched_current_thread( );
 
 retry:
-	// handle interrupt listeners
-	if ( is_interrupt_msg( from )){
-		interrupt_listen( from - MESSAGE_INTERRUPT_MASK, cur );
-		sched_thread_yield( );
-	}
-
 	if ( (cur->flags & SCHED_FLAG_PENDING_MSG) == 0 ){
 		thread_t *sender = thread_list_pop( &cur->waiting );
 
@@ -371,8 +361,12 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			sched_thread_stop( target );
 			break;
 
-		case MESSAGE_TYPE_INTERRUPT:
-			should_send = true;
+		case MESSAGE_TYPE_INTERRUPT_SUBSCRIBE:
+			interrupt_listen( msg->data[0], current );
+			break;
+
+		case MESSAGE_TYPE_INTERRUPT_UNSUBSCRIBE:
+			// TODO: unsubscribe function
 			break;
 
 		default:
