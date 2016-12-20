@@ -195,7 +195,7 @@ bool message_send_async( message_t *msg, unsigned to ){
 	// TODO: capability checks, once implemented
 	message_queue_insert( &target->async_queue, message_node_alloc( msg ));
 
-	if ( target->state == SCHED_STATE_WAITING ){
+	if ( target->state == SCHED_STATE_WAITING_ASYNC ){
 		target->state = SCHED_STATE_RUNNING;
 	}
 
@@ -220,7 +220,7 @@ retry:
 		// same as message_recieve(), the sender will set the thread's state
 		// to 'running' whenever they get around to sending a message
 		debug_printf( "recieve async blocked\n", flags );
-		current->state = SCHED_STATE_WAITING;
+		current->state = SCHED_STATE_WAITING_ASYNC;
 		sched_thread_yield( );
 		goto retry;
 	}
