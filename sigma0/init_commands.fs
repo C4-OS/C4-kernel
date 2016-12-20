@@ -80,6 +80,8 @@ make-msgbuf buffer
 ;
 
 0xffffbeef value list-start
+list-start value [[
+: ]] ;
 
 : dumpmaps-list
   while dup list-start != begin
@@ -100,9 +102,22 @@ make-msgbuf buffer
   tarfind elfload drop
 ;
 
-( initial program list to bootstrap the system )
-"sigma0/initfs/bin/interrupts" exec
+: exec-list ( path-list ... -- )
+  while dup list-start != begin
+    exec
+  repeat
+  drop
+;
 
+( initial program list to bootstrap the system )
+: bootstrap ( -- )
+  [[
+    "sigma0/initfs/bin/interrupts"
+    "sigma0/initfs/bin/test"
+  ]] exec-list
+;
+
+bootstrap
 "All systems are go, good luck" print-string cr
 
 ( XXX : newline needed at the end of the file because the init routine )
