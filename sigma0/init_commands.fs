@@ -112,7 +112,7 @@ list-start value [[
 ( initial program list to bootstrap the system )
 : bootstrap ( -- )
   [[
-    "sigma0/initfs/bin/interrupts"
+    "sigma0/initfs/bin/keyboard"
     "sigma0/initfs/bin/test"
   ]] exec-list
 ;
