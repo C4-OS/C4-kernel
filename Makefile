@@ -11,7 +11,6 @@ ALL_CLEAN   = c4-$(ARCH)
 all: do_all
 
 include objs.mk
-include sigma0/objs.mk
 
 .PHONY: do_all
 do_all: $(ALL_TARGETS)
@@ -19,13 +18,3 @@ do_all: $(ALL_TARGETS)
 .PHONY: clean
 clean:
 	rm -f $(ALL_CLEAN)
-
-.PHONY: test
-test:
-	qemu-system-i386 -kernel ./c4-$(ARCH) -initrd ./c4-$(ARCH)-sigma0 \
-		-serial stdio -m 32
-
-.PHONY: debug
-debug:
-	qemu-system-i386 -kernel ./c4-$(ARCH) -initrd ./c4-$(ARCH)-sigma0 \
-		-serial stdio -m 32 -s
