@@ -153,14 +153,13 @@ static int syscall_ioport( arg_t action, arg_t port, arg_t value, arg_t d ){
 	debug_printf( "doing io stuff: %u, port %u, value %u\n",
 	              action, port, value );
 	switch ( action ){
-		case SYSCALL_IO_INPUT:
-			return inb( port );
-			break;
+		case IO_PORT_IN_BYTE:  return inb( port );
+		case IO_PORT_IN_WORD:  return inw( port );
+		case IO_PORT_IN_DWORD: return inl( port );
 
-		case SYSCALL_IO_OUTPUT:
-			outb( port, value );
-			return 0;
-			break;
+		case IO_PORT_OUT_BYTE:  outb( port, value ); return 0;
+		case IO_PORT_OUT_WORD:  outw( port, value ); return 0;
+		case IO_PORT_OUT_DWORD: outl( port, value ); return 0;
 
 		default: break;
 	}

@@ -15,8 +15,12 @@ enum {
 
 // XXX: architecture-specific workaround, will need to be removed in the future
 enum {
-	SYSCALL_IO_INPUT,
-	SYSCALL_IO_OUTPUT,
+	IO_PORT_IN_BYTE,
+	IO_PORT_IN_WORD,
+	IO_PORT_IN_DWORD,
+	IO_PORT_OUT_BYTE,
+	IO_PORT_OUT_WORD,
+	IO_PORT_OUT_DWORD,
 };
 
 // called from the appropriate syscall interface for the platform,
