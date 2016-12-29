@@ -150,8 +150,6 @@ static int syscall_recieve_async( arg_t buffer, arg_t flags, arg_t c, arg_t d )
 
 static int syscall_ioport( arg_t action, arg_t port, arg_t value, arg_t d ){
 #ifdef __i386__
-	debug_printf( "doing io stuff: %u, port %u, value %u\n",
-	              action, port, value );
 	switch ( action ){
 		case IO_PORT_IN_BYTE:  return inb( port );
 		case IO_PORT_IN_WORD:  return inw( port );
