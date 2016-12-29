@@ -54,6 +54,8 @@ void sched_switch_thread( void ){
 		start = current_thread;
 	}
 
+	next = next_thread( next );
+
 	// TODO: move threads to a seperate 'waiting' list
 	while ( next->state != SCHED_STATE_RUNNING ){
 		next = next_thread( next );
