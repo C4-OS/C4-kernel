@@ -123,19 +123,23 @@ void sched_thread_stop( thread_t *thread ){
 }
 
 void sched_thread_exit( void ){
-	debug_printf( "got to exit, thread %u\n", current_thread->id );
-
-	// TODO: Add syncronization here, to prevent current_thread from
-	//       being left in an inconsistent state if a task switch happens
-	//       this will probably crash randomly until it's fixed
-
-	thread_list_remove( &current_thread->sched );
-	current_thread = NULL;
-
+	sched_thread_kill( sched_current_thread( ));
 	sched_thread_yield( );
 
 	for (;;);
+}
 
+void sched_thread_kill( thread_t *thread ){
+	if ( thread ){
+		if ( thread == current_thread ){
+			current_thread = NULL;
+		}
+
+		// TODO: reclaim thread resources
+		sched_thread_stop( thread );
+		thread_list_remove( &thread->sched );
+		thread_destroy( thread );
+	}
 }
 
 thread_t *sched_current_thread( void ){

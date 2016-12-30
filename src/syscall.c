@@ -39,8 +39,13 @@ int syscall_dispatch( unsigned num, arg_t a, arg_t b, arg_t c, arg_t d ){
 }
 
 static int syscall_exit( arg_t a, arg_t b, arg_t c, arg_t d ){
-	debug_printf( "got exit with %u, %u, and %u\n", a, b, c );
+	thread_t *cur = sched_current_thread( );
 
+	debug_printf( "thread %u exiting\n", cur->id );
+	sched_thread_exit( );
+
+	// shouldn't get here
+	debug_printf( "sched_thread_exit() failed for some reason...?\n" );
 	return 0;
 }
 
