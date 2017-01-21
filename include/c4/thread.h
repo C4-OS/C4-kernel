@@ -6,9 +6,11 @@
 #include <c4/mm/addrspace.h>
 
 enum {
-	THREAD_FLAG_NONE       = 0,
-	THREAD_FLAG_USER       = 1,
-	THREAD_FLAG_ROOT_TASK  = 2,
+	THREAD_FLAG_NONE        = 0,
+	THREAD_FLAG_USER        = 1,
+	THREAD_FLAG_ROOT_TASK   = 2,
+	THREAD_FLAG_PENDING_MSG = 4,
+	THREAD_FLAG_FAULTED     = 8,
 };
 
 enum {
@@ -45,6 +47,7 @@ typedef struct thread {
 	unsigned priority;
 	unsigned state;
 	unsigned flags;
+	unsigned pager;
 
 	message_t       message;
 	message_queue_t async_queue;

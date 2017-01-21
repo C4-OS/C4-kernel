@@ -142,18 +142,29 @@ void page_fault_handler( interrupt_frame_t *frame ){
 
 	asm volatile ( "mov %%cr2, %0" : "=r"(cr_2));
 
-	debug_printf( "=== page fault! ===\n" );
-	debug_printf( "=== fault address: %p\n", cr_2 );
-	debug_printf( "=== error code: 0b%b ===\n", frame->error_num );
-	debug_printf( "=== (%s, %s, %s) ===\n",
-		(err & PAGE_ARCH_PRESENT)?    "present"   : "not present",
-		(err & PAGE_ARCH_SUPERVISOR)? "user mode" : "supervisor",
-		(err & PAGE_ARCH_WRITABLE)?   "write"     : "read"
-	);
+	// if it's a page fault from usermode, handle that with generic paging
+	// code and continue
+	//
+	// TODO: change 'supervisor' to 'user' in kernel
+	if ( err & PAGE_ARCH_SUPERVISOR ){
+		// do page fault messaging stuff
+		page_fault_message( cr_2 );
 
-	interrupt_print_frame( frame );
+	// otherwise panic
+	} else {
+		// TODO: panic() function
+		debug_printf( "=== page fault! ===\n" );
+		debug_printf( "=== fault address: %p\n", cr_2 );
+		debug_printf( "=== error code: 0b%b ===\n", frame->error_num );
+		debug_printf( "=== (%s, %s, %s) ===\n",
+					  (err & PAGE_ARCH_PRESENT)?    "present"   : "not present",
+					  (err & PAGE_ARCH_SUPERVISOR)? "user mode" : "supervisor",
+					  (err & PAGE_ARCH_WRITABLE)?   "write"     : "read"
+					);
 
-	for ( ;; );
+		interrupt_print_frame( frame );
+		for ( ;; );
+	}
 }
 
 void init_paging( void ){

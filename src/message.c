@@ -15,19 +15,27 @@ static inline bool is_kernel_msg( message_t *msg ){
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target );
 static inline bool kernel_msg_handle_recieve( message_t *msg );
 
+static inline void set_sender_state( thread_t *sender ){
+	if ( FLAG( sender, THREAD_FLAG_FAULTED )){
+		sender->state = SCHED_STATE_STOPPED;
+
+	} else {
+		sender->state = SCHED_STATE_RUNNING;
+	}
+}
+
 void message_recieve( message_t *msg, unsigned from ){
 	thread_t *cur = sched_current_thread( );
 
 retry:
-	if ( (cur->flags & SCHED_FLAG_PENDING_MSG) == 0 ){
+	if ( FLAG(cur, THREAD_FLAG_PENDING_MSG) == 0 ){
 		thread_t *sender = thread_list_pop( &cur->waiting );
 
 		// if there's a thread in the queue, copy it's message to the buffer
 		// and requeue it in the scheduler
 		if ( sender ){
 			cur->message = sender->message;
-			sender->state = SCHED_STATE_RUNNING;
-
+			set_sender_state( sender );
 			sched_add_thread( sender );
 
 		// otherwise block the thread and wait for a message to be recieved.
@@ -44,8 +52,8 @@ retry:
 		kernel_msg_handle_recieve( &cur->message );
 	}
 
-	cur->state  = SCHED_STATE_RUNNING;
-	cur->flags &= ~SCHED_FLAG_PENDING_MSG;
+	cur->state = SCHED_STATE_RUNNING;
+	UNSET_FLAG( cur, THREAD_FLAG_PENDING_MSG );
 	*msg = cur->message;
 }
 
@@ -72,10 +80,10 @@ bool message_try_send( message_t *msg, unsigned id ){
 	msg->sender = cur->id;
 
 	if ( thread->state == SCHED_STATE_WAITING 
-	   && (thread->flags & SCHED_FLAG_PENDING_MSG) == 0 )
+	   && FLAG(thread, THREAD_FLAG_PENDING_MSG) == 0 )
 	{
 		thread->message = *msg;
-		thread->flags |= SCHED_FLAG_PENDING_MSG;
+		SET_FLAG( thread, THREAD_FLAG_PENDING_MSG );
 		thread->state = SCHED_STATE_RUNNING;
 
 		return true;
@@ -91,9 +99,10 @@ void message_send( message_t *msg, unsigned id ){
 	// the target then copies the message buffer from the sender thread
 	// once the target does a message_recieve() call, and this thread is
 	// popped from the list.
+	thread_t *cur    = sched_current_thread( );
+	thread_t *thread = thread_get_id( id );
+
 	if ( !message_try_send( msg, id )){
-		thread_t *thread = thread_get_id( id );
-		thread_t *cur    = sched_current_thread( );
 
 		if ( thread ){
 			cur->message = *msg;
@@ -103,6 +112,9 @@ void message_send( message_t *msg, unsigned id ){
 			thread_list_insert( &thread->waiting, &cur->sched );
 			sched_thread_yield( );
 		}
+
+	} else {
+		set_sender_state( cur );
 	}
 }
 
@@ -348,6 +360,10 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			message_request_phys( msg );
 			break;
 
+		case MESSAGE_TYPE_PAGE_FAULT:
+			should_send = true;
+			break;
+
 		// handle thread control messages
 		// TODO: once capabilities are implemented, check for proper
 		//       capabilities to send these
@@ -367,6 +383,10 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 
 		case MESSAGE_TYPE_INTERRUPT_UNSUBSCRIBE:
 			// TODO: unsubscribe function
+			break;
+
+		case MESSAGE_TYPE_SET_PAGER:
+			target->pager = msg->data[0];
 			break;
 
 		default:

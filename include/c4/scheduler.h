@@ -4,12 +4,6 @@
 #include <c4/arch/scheduler.h>
 
 enum {
-	SCHED_FLAG_NONE,
-	SCHED_FLAG_HAS_RAN,
-	SCHED_FLAG_PENDING_MSG,
-};
-
-enum {
 	SCHED_STATE_RUNNING,
 	SCHED_STATE_STOPPED,
 	SCHED_STATE_WAITING,
