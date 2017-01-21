@@ -6,9 +6,9 @@
 
 static unsigned listening_threads[INTERRUPT_MAX];
 
-void interrupt_callback( unsigned num, unsigned flags ){
+bool interrupt_callback( unsigned num, unsigned flags ){
 	if ( listening_threads[num] == 0 )
-		return;
+		return false;
 
 	thread_t *thread = thread_get_id( listening_threads[num] );
 
@@ -19,13 +19,12 @@ void interrupt_callback( unsigned num, unsigned flags ){
 		}
 	};
 
-	debug_printf( "got here, sending interrupt %u to %u\n",
-				  num, thread->id );
-
 	// TODO: maybe change message_send_async() to take a thread_t argument
 	//       rather than a thread id, so it doesn't have to unnecessarily
 	//       do thread lookups
 	message_send_async( &msg, thread->id );
+
+	return true;
 }
 
 int interrupt_listen( unsigned num, thread_t *thread ){

@@ -180,8 +180,6 @@ bool message_send_async( message_t *msg, unsigned to ){
 	thread_t *target  = thread_get_id( to );
 	thread_t *current = sched_current_thread( );
 
-	debug_printf( "send async: sending to %u\n", to );
-
 	if ( !target ){
 		debug_printf( "[ipc] invalid message target, %u -> %u, returning\n",
 		              current->id, to );
@@ -201,8 +199,6 @@ bool message_send_async( message_t *msg, unsigned to ){
 		target->state = SCHED_STATE_RUNNING;
 	}
 
-	debug_printf( "got here\n" );
-
 	return true;
 }
 
@@ -221,7 +217,6 @@ retry:
 	} else if ( flags & MESSAGE_ASYNC_BLOCK ){
 		// same as message_recieve(), the sender will set the thread's state
 		// to 'running' whenever they get around to sending a message
-		debug_printf( "recieve async blocked\n", flags );
 		current->state = SCHED_STATE_WAITING_ASYNC;
 		sched_thread_yield( );
 		goto retry;

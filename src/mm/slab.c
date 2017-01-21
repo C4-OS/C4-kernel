@@ -72,8 +72,6 @@ static inline void slab_dealloc_free_block( slab_t *slab ){
 	if ( slab->free.size > MAX_FREE_SLABS ){
 		slab_blk_t *block = slab_pop_block( &slab->free );
 
-		debug_printf( "freeing spare page %p\n", block );
-
 		region_free( slab->region, block );
 	}
 }
@@ -94,7 +92,7 @@ retry:
 
 		slab_move_block( temp, &slab->free );
 		if ( !retried ){
-			debug_printf( "allocated new block %p, retrying...\n", temp );
+			//debug_printf( "allocated new block %p, retrying...\n", temp );
 			retried = true;
 			goto retry;
 		}
@@ -104,8 +102,12 @@ retry:
 		int n = bitmap_first_free( &block->map, BITMAP_BPS );
 		uintptr_t addr = (uintptr_t)block + n * slab->obj_size;
 
+		// leaving some debugging statements commented out for further
+		// planned work on slab allocator
+		/*
 		debug_printf( "bitmap: 0x%x, location: %u, pages: %u\n",
 			block->map, n, slab->total_pages );
+		 */
 
 		bitmap_set( &block->map, n );
 
@@ -144,13 +146,11 @@ void slab_free( slab_t *slab, void *ptr ){
 		// test to see if there are any entries besides the first
 		// information block, and stuff it into the free list if not
 		if ( block->map == 1 ){
-			debug_printf( "moving block %p to free list\n", block );
 			slab_move_block( block, &slab->free );
 
 			slab_dealloc_free_block( slab );
 
 		} else if ( block->list == &slab->full ){
-			debug_printf( "moving full block %p to partial list\n", block );
 			slab_move_block( block, &slab->partial );
 		}
 	}

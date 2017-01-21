@@ -111,13 +111,15 @@ void isr_dispatch( interrupt_frame_t *frame ){
 
 	// call the general interrupt callback handler, for interrupt operations
 	// which aren't implementation-specific
-	interrupt_callback( frame->intr_num, 0 );
+	bool handled = interrupt_callback( frame->intr_num, 0 );
 
 	if ( intr_handlers[frame->intr_num] ){
 		intr_handlers[frame->intr_num]( frame );
+		handled = true;
+	}
 
-	} else {
-		debug_printf( "have unhandled interrupt %u, call %u\n",
+	if ( !handled ){
+		debug_printf( "note: have unhandled interrupt %u, call %u\n",
 		              frame->intr_num, intr_stats[frame->intr_num] );
 	}
 }
