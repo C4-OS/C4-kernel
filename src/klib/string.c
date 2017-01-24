@@ -27,3 +27,15 @@ unsigned strlen(const char *s){
 
 	return i;
 }
+
+char *strncpy( char *dest, const char *src, unsigned n ){
+	unsigned i = 0;
+
+	for ( ; i < n - 1 && src[i]; i++ ){
+		dest[i] = src[i];
+	}
+
+	dest[i] = 0;
+
+	return dest;
+}
