@@ -88,6 +88,7 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	};
 
 	addr_space_insert_map( new_space, &ent );
+	addr_space_map_self( new_space, ADDR_MAP_ADDR );
 	debug_printf( "asdf: 0x%x\n", code_end );
 
 	memcpy( func, sigma0_addr, func_size );

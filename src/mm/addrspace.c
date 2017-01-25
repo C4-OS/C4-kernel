@@ -70,6 +70,18 @@ void addr_space_set( addr_space_t *space ){
 	set_page_dir( space->page_dir );
 }
 
+// map the entry map for the current address space to `addr` as user-readable
+void addr_space_map_self( addr_space_t *space, void *addr ){
+	addr_entry_t ent = {
+		.virtual     = (unsigned long)addr,
+		.physical    = (unsigned long)page_phys_addr( space->map ),
+		.size        = 1,
+		.permissions = PAGE_READ,
+	};
+
+	addr_space_insert_map( space, &ent );
+}
+
 int addr_space_map( addr_space_t *a,
                     addr_space_t *b,
                     addr_entry_t *ent );

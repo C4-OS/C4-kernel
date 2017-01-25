@@ -5,6 +5,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// default location for address space memory maps, for use by userspace
+// threads
+//
+// TODO: consider making this arch-specific, with eg. a platform-specific
+//       layout.h header to describe where things should be placed,
+//       and so things aren't overlapped by mistake
+#define ADDR_MAP_ADDR ((void *)(KERNEL_BASE - PAGE_SIZE * 2))
+
 typedef struct addr_node {
 	unsigned long virtual;
 	unsigned long physical;
@@ -51,6 +59,7 @@ addr_space_t *addr_space_reference( addr_space_t *space );
 addr_space_t *addr_space_kernel( void );
 void          addr_space_free( addr_space_t *space );
 void          addr_space_set( addr_space_t *space );
+void          addr_space_map_self( addr_space_t *space, void *addr );
 
 int addr_space_map( addr_space_t *a,
                     addr_space_t *b,

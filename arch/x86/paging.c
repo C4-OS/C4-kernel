@@ -109,7 +109,7 @@ static page_table_t *page_current_table_entry( unsigned entry ){
 	return (void *)(0xffc00000 | (entry << 12));
 }
 
-static void *page_phys_addr( void *vaddress ){
+void *page_phys_addr( void *vaddress ){
 	unsigned dirent   = page_dir_entry( vaddress );
 	unsigned tableent = page_table_entry( vaddress );
 

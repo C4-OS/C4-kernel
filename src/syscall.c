@@ -3,6 +3,7 @@
 #include <c4/message.h>
 #include <c4/thread.h>
 #include <c4/scheduler.h>
+#include <c4/mm/addrspace.h>
 
 typedef uintptr_t arg_t;
 typedef int (*syscall_func_t)( arg_t a, arg_t b, arg_t c, arg_t d );
@@ -75,6 +76,9 @@ static int syscall_create_thread( arg_t user_entry,
 
 	} else if ( flags & THREAD_CREATE_FLAG_NEWMAP ){
 		space = addr_space_clone( addr_space_kernel( ));
+		addr_space_set( space );
+		addr_space_map_self( space, ADDR_MAP_ADDR );
+		addr_space_set( cur->addr_space );
 	}
 
 	thread = thread_create( entry, space, stack, THREAD_FLAG_USER );
