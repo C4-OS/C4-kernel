@@ -21,6 +21,12 @@ void timer_handler( interrupt_frame_t *frame ){
 	sched_switch_thread( );
 }
 
+static inline bool is_valid_vbe( vbe_mode_t *mode ){
+	return mode->physbase != 0
+	    && mode->bpp      != 0
+	    && mode->bpp      != 0xff;
+}
+
 // initialize a bootinfo_t structure from a multiboot header
 static void bootinfo_init( bootinfo_t *info, multiboot_header_t *header ){
 	char *cmd = "c4";
@@ -32,13 +38,42 @@ static void bootinfo_init( bootinfo_t *info, multiboot_header_t *header ){
 	info->version.minor = 0;
 	info->version.patch = 0;
 
-	if ( header->flags & MULTIBOOT_FLAG_CMDLINE ){
+	if ( FLAG( header, MULTIBOOT_FLAG_CMDLINE )){
 		cmd = (char *)low_phys_to_virt( header->cmdline );
+		debug_printf( "have command line, " );
+
+	} else {
+		debug_printf( "no command line, " );
 	}
 
 	strncpy( info->cmdline, cmd, sizeof( info->cmdline ));
 
 	info->framebuffer.exists = false;
+
+	if ( FLAG( header, MULTIBOOT_FLAG_VBE )){
+		vbe_mode_t *mode = (void*)low_phys_to_virt( header->vbe_mode_info );
+
+		if ( is_valid_vbe( mode )){
+			info->framebuffer.exists = true;
+			info->framebuffer.width  = mode->x_res;
+			info->framebuffer.height = mode->y_res;
+			info->framebuffer.addr   = mode->physbase;
+			info->framebuffer.bpp    = mode->bpp;
+
+			debug_printf( "framebuffer %ux%ux%u @ %p, ",
+				info->framebuffer.width,
+				info->framebuffer.height,
+				info->framebuffer.bpp,
+				info->framebuffer.addr );
+
+		} else {
+			debug_printf(
+				"bootloader says we have graphics, but info is invalid, " );
+		}
+
+	} else {
+		debug_printf( "no framebuffer, " );
+	}
 }
 
 void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){

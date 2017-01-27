@@ -18,7 +18,8 @@ void page_fault_message( uintptr_t address ){
 		.data = { address, }
 	};
 
-	debug_printf( "=== sending a page fault message to %u\n", cur->pager );
+	debug_printf( "=== sending a page fault message to %u, address: %p\n",
+		cur->pager, address );
 
 	SET_FLAG( cur, THREAD_FLAG_FAULTED );
 	message_send( &faultmsg, cur->pager );

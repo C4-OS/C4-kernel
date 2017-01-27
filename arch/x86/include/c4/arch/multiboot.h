@@ -3,17 +3,18 @@
 #include <stdint.h>
 
 enum {
-	MULTIBOOT_FLAG_MEM     = 0x001,
-	MULTIBOOT_FLAG_DEVICE  = 0x002,
-	MULTIBOOT_FLAG_CMDLINE = 0x004,
-	MULTIBOOT_FLAG_MODS    = 0x008,
-	MULTIBOOT_FLAG_AOUT    = 0x010,
-	MULTIBOOT_FLAG_ELF     = 0x020,
-	MULTIBOOT_FLAG_MMAP    = 0x040,
-	MULTIBOOT_FLAG_CONFIG  = 0x080,
-	MULTIBOOT_FLAG_LOADER  = 0x100,
-	MULTIBOOT_FLAG_APM     = 0x200,
-	MULTIBOOT_FLAG_VBE     = 0x400
+	MULTIBOOT_FLAG_MEM     = 1 << 0,
+	MULTIBOOT_FLAG_DEVICE  = 1 << 1,
+	MULTIBOOT_FLAG_CMDLINE = 1 << 2,
+	MULTIBOOT_FLAG_MODS    = 1 << 3,
+	MULTIBOOT_FLAG_AOUT    = 1 << 4,
+	MULTIBOOT_FLAG_ELF     = 1 << 5,
+	MULTIBOOT_FLAG_MMAP    = 1 << 6,
+	MULTIBOOT_FLAG_DRIVES  = 1 << 7,
+	MULTIBOOT_FLAG_CONFIG  = 1 << 8,
+	MULTIBOOT_FLAG_LOADER  = 1 << 9,
+	MULTIBOOT_FLAG_APM     = 1 << 10,
+	MULTIBOOT_FLAG_VBE     = 1 << 11,
 };
 
 enum { 
@@ -68,5 +69,39 @@ typedef struct multiboot_header {
 	uint32_t vbe_interface_off;
 	uint32_t vbe_interface_len;
 } __attribute__((packed)) multiboot_header_t;
-	
+
+typedef struct vbe_info_block {
+    uint8_t  vbe_sig[4];
+    uint16_t version;
+    uint16_t oem_str_ptr[2];
+    uint8_t  capabilities[4];
+    uint16_t mode_ptr[2];
+    uint16_t total_mem;
+} __attribute__((packed)) vbe_info_block_t;
+
+typedef struct vbe_mode {
+    uint16_t attributes;
+    uint8_t  win_a, win_b;
+    uint16_t granularity;
+    uint16_t winsize;
+    uint16_t segment_a, segment_b;
+    uint16_t real_fct_ptr[2];
+    uint16_t pitch;
+
+    uint16_t x_res, y_res;
+    uint8_t  w_char, y_char, planes, bpp, banks;
+    uint8_t  mem_model, bank_size, image_pages;
+    uint8_t  reserved0;
+
+    uint8_t  red_mask, red_position;
+    uint8_t  green_mask, green_position;
+    uint8_t  blue_mask, blue_position;
+    uint8_t  rsv_mask, rsv_position;
+    uint8_t  direct_color_attributes;
+
+    uint32_t physbase;
+    uint32_t reserved1;
+    uint16_t reserved2;
+} __attribute__((packed)) vbe_mode_t;
+
 #endif
