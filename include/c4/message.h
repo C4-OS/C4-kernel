@@ -5,6 +5,7 @@
 
 enum {
 	MESSAGE_TYPE_NOP,
+	MESSAGE_TYPE_DEBUG_PUTCHAR,
 	MESSAGE_TYPE_DEBUG_PRINT,
 
 	// memory control messages
