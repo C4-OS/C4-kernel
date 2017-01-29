@@ -81,13 +81,18 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 
 	addr_space_set( new_space );
 
-	unsigned func_size = module->end - module->start;
+	// XXX: 0x200 is maximum bss size, since the bss won't be part of the flat
+	//      binary that is produced by objcopy for sigma0.
+	//      It might need to be increased in the future, maybe provide a config
+	//      option, once that's implemented?
+	unsigned func_size = module->end - module->start + 0x200;
 	void *sigma0_addr  = (void *)low_phys_to_virt(module->start);
 	addr_entry_t ent;
 
 	uintptr_t code_start = 0xc0000000;
 	uintptr_t code_end   = code_start + func_size +
 	                       (PAGE_SIZE - (func_size % PAGE_SIZE));
+
 	uintptr_t data_start = 0xd0000000;
 	uintptr_t data_end   = 0xd0800000;
 
@@ -117,7 +122,7 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 
 	ent = (addr_entry_t){
 		.virtual     = data_start,
-		.physical    = 0x830000,
+		.physical    = 0x840000,
 		.size        = (data_end - data_start) / PAGE_SIZE,
 		.permissions = PAGE_READ | PAGE_WRITE,
 	};
