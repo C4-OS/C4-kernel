@@ -14,12 +14,9 @@ static int syscall_send( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_recieve( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_send_async( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_recieve_async( arg_t a, arg_t b, arg_t c, arg_t d );
-
-// XXX: syscall to interact with i/o ports on behalf of the user thread
-//      will need to consider how to safely make the in*/out* instructions
-//      accessible in usermode, on x86(_64), since this will definitely
-//      cause issues when writing more complex drivers
+// TODO: look into replacing this syscall with io bitmap
 static int syscall_ioport( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_info( arg_t a, arg_t b, arg_t c, arg_t d );
 
 static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_exit,
@@ -29,6 +26,7 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_send_async,
 	syscall_recieve_async,
 	syscall_ioport,
+	syscall_info,
 };
 
 int syscall_dispatch( unsigned num, arg_t a, arg_t b, arg_t c, arg_t d ){
@@ -152,7 +150,6 @@ static int syscall_recieve_async( arg_t buffer, arg_t flags, arg_t c, arg_t d )
 }
 
 
-// TODO: seriously this needs to be removed one day, don't forget!
 #ifdef __i386__
 #include <c4/arch/ioports.h>
 #endif
@@ -173,5 +170,24 @@ static int syscall_ioport( arg_t action, arg_t port, arg_t value, arg_t d ){
 #endif
 
 	// TODO: return proper error
+	return -1;
+}
+
+static int syscall_info( arg_t action, arg_t b, arg_t c, arg_t d ){
+	thread_t *current = sched_current_thread();
+
+	switch ( action ){
+		case SYSCALL_INFO_GET_ID:
+			return current->id;
+			break;
+
+		case SYSCALL_INFO_GET_PAGER:
+			return current->pager;
+			break;
+
+		default:
+			break;
+	}
+
 	return -1;
 }

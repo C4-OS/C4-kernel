@@ -10,6 +10,7 @@ enum {
 	SYSCALL_SEND_ASYNC,
 	SYSCALL_RECIEVE_ASYNC,
 	SYSCALL_IOPORT,
+	SYSCALL_INFO,
 	SYSCALL_MAX,
 };
 
@@ -21,6 +22,11 @@ enum {
 	IO_PORT_OUT_BYTE,
 	IO_PORT_OUT_WORD,
 	IO_PORT_OUT_DWORD,
+};
+
+enum {
+	SYSCALL_INFO_GET_ID,
+	SYSCALL_INFO_GET_PAGER,
 };
 
 // called from the appropriate syscall interface for the platform,
