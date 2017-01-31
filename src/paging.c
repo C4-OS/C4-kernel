@@ -4,7 +4,7 @@
 #include <c4/common.h>
 #include <c4/debug.h>
 
-void page_fault_message( uintptr_t address ){
+void page_fault_message( uintptr_t address, uintptr_t ip, unsigned perms ){
 	thread_t *cur = sched_current_thread( );
 
 	if ( !cur ){
@@ -15,7 +15,7 @@ void page_fault_message( uintptr_t address ){
 
 	message_t faultmsg = {
 		.type = MESSAGE_TYPE_PAGE_FAULT,
-		.data = { address, }
+		.data = { address, ip, perms },
 	};
 
 	debug_printf( "=== sending a page fault message to %u, address: %p\n",

@@ -147,8 +147,10 @@ void page_fault_handler( interrupt_frame_t *frame ){
 	//
 	// TODO: change 'supervisor' to 'user' in kernel
 	if ( err & PAGE_ARCH_SUPERVISOR ){
+		unsigned perms = (err & PAGE_ARCH_WRITABLE)? PAGE_WRITE : PAGE_READ;
+
 		// do page fault messaging stuff
-		page_fault_message( cr_2 );
+		page_fault_message( cr_2, frame->eip, perms );
 
 	// otherwise panic
 	} else {
