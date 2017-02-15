@@ -8,7 +8,8 @@ enum {
 };
 
 // constant address of boot information in userspace
-static struct bootinfo *bootinfo_addr = (void *)(KERNEL_BASE - PAGE_SIZE);
+#define BOOTINFO_ADDR ((void *)(KERNEL_BASE - PAGE_SIZE))
+//static struct bootinfo *bootinfo_addr = (void *)(KERNEL_BASE - PAGE_SIZE);
 
 typedef struct bootinfo {
 	// magic number to identify bootinfo struct, defined above

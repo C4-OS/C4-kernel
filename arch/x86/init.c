@@ -100,7 +100,7 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	void *new_stack = (void *)(data_start + 0xff8);
 
 	ent = (addr_entry_t){
-		.virtual     = (uintptr_t)bootinfo_addr,
+		.virtual     = (uintptr_t)BOOTINFO_ADDR,
 		.physical    = 0x800000,
 		.size        = 1,
 		.permissions = PAGE_READ,
@@ -109,7 +109,7 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	addr_space_insert_map( new_space, &ent );
 
 	// bootinfo_addr defined in bootinfo.h
-	memcpy( bootinfo_addr, bootinfo, sizeof( bootinfo_t ));
+	memcpy( BOOTINFO_ADDR, bootinfo, sizeof( bootinfo_t ));
 
 	ent = (addr_entry_t){
 		.virtual     = code_start,
@@ -232,7 +232,7 @@ void arch_init( multiboot_header_t *header ){
 	}
 
 	sigma0_load( sigma0, &bootinfo );
-	sched_add_thread( thread_create_kthread( test_thread_client ));
+	//sched_add_thread( thread_create_kthread( test_thread_client ));
 
 	register_interrupt( INTERRUPT_TIMER,    timer_handler );
 
