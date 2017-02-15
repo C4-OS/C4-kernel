@@ -113,6 +113,10 @@ void sched_add_thread( thread_t *thread ){
 void sched_thread_continue( thread_t *thread ){
 	if ( thread->state == SCHED_STATE_STOPPED ){
 		thread->state = SCHED_STATE_RUNNING;
+
+		// clear 'faulted' flag, assuming that if there was a fault,
+		// the thread calling this function has resolved it
+		UNSET_FLAG( thread, THREAD_FLAG_FAULTED );
 	}
 }
 
