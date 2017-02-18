@@ -122,7 +122,7 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 
 	ent = (addr_entry_t){
 		.virtual     = data_start,
-		.physical    = 0x840000,
+		.physical    = 0x850000,
 		.size        = (data_end - data_start) / PAGE_SIZE,
 		.permissions = PAGE_READ | PAGE_WRITE,
 	};
