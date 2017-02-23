@@ -276,7 +276,6 @@ static inline bool message_map_to( message_t *msg,
 	addr_entry_t *temp = addr_map_carve( cur->addr_space->map, &ent );
 	addr_entry_t msgbuf;
 
-	//memcpy( &msgbuf, temp, sizeof( addr_entry_t ));
 	msgbuf = *temp;
 	msgbuf.virtual = to;
 
@@ -299,6 +298,26 @@ static inline bool message_map_to( message_t *msg,
 
 			should_send = true;
 		}
+	}
+
+	return should_send;
+}
+
+static inline bool message_unmap( message_t *msg, thread_t *target ){
+	// TODO: capability checks to see if the current thread can send thread
+	//       unmapping messages to the target thread
+
+	thread_t *cur = sched_current_thread( );
+	uintptr_t addr = msg->data[0];
+	bool should_send = false;
+
+	if ( target->state == SCHED_STATE_STOPPED ){
+		addr_space_set( target->addr_space );
+		addr_space_unmap( target->addr_space, addr );
+		addr_space_set( cur->addr_space );
+
+	} else {
+		should_send = true;
 	}
 
 	return should_send;
@@ -344,6 +363,10 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			);
 
 			addr_map_dump( target->addr_space->map );
+			break;
+
+		case MESSAGE_TYPE_UNMAP:
+			should_send = message_unmap( msg, target );
 			break;
 
 		// memory control messages
@@ -398,6 +421,12 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 
 static inline bool kernel_msg_handle_recieve( message_t *msg ){
 	switch ( msg->type ){
+		case MESSAGE_TYPE_UNMAP:
+			{
+				thread_t *cur = sched_current_thread( );
+				addr_space_unmap( cur->addr_space, msg->data[0] );
+			}
+
 		case MESSAGE_TYPE_MAP_TO:
 		case MESSAGE_TYPE_GRANT_TO:
 			{
