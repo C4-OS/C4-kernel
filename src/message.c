@@ -24,12 +24,35 @@ static inline void set_sender_state( thread_t *sender ){
 	}
 }
 
+static inline thread_t *message_list_find( thread_list_t *list, unsigned id ){
+	for ( thread_node_t *temp = list->first; temp; temp = temp->next ){
+		if ( temp->thread->id == id ){
+			thread_t *ret = temp->thread;
+			thread_list_remove( temp );
+			return ret;
+		}
+	}
+
+	return NULL;
+}
+
+// check if the target thread can currently recieve this message
+static inline bool message_thread_can_recieve( thread_t *target ){
+	thread_t *cur = sched_current_thread( );
+
+	return target->state == SCHED_STATE_WAITING
+	    && FLAG(target, THREAD_FLAG_PENDING_MSG) == false
+	    && (target->recieve_id == 0 || target->recieve_id == cur->id);
+}
+
 void message_recieve( message_t *msg, unsigned from ){
 	thread_t *cur = sched_current_thread( );
+	cur->recieve_id = from;
 
 retry:
 	if ( FLAG(cur, THREAD_FLAG_PENDING_MSG) == 0 ){
-		thread_t *sender = thread_list_pop( &cur->waiting );
+		thread_t *sender = from ? message_list_find( &cur->waiting, from )
+		                        : thread_list_pop( &cur->waiting );
 
 		// if there's a thread in the queue, copy it's message to the buffer
 		// and requeue it in the scheduler
@@ -53,6 +76,7 @@ retry:
 	}
 
 	cur->state = SCHED_STATE_RUNNING;
+	cur->recieve_id = 0;
 	UNSET_FLAG( cur, THREAD_FLAG_PENDING_MSG );
 	*msg = cur->message;
 }
@@ -79,9 +103,7 @@ bool message_try_send( message_t *msg, unsigned id ){
 	// set sender field
 	msg->sender = cur->id;
 
-	if ( thread->state == SCHED_STATE_WAITING 
-	   && FLAG(thread, THREAD_FLAG_PENDING_MSG) == 0 )
-	{
+	if ( message_thread_can_recieve( thread )){
 		thread->message = *msg;
 		SET_FLAG( thread, THREAD_FLAG_PENDING_MSG );
 		thread->state = SCHED_STATE_RUNNING;

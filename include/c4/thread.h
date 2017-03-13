@@ -44,7 +44,7 @@ typedef struct thread {
 	thread_list_t waiting;
 
 	unsigned id;
-	unsigned priority;
+	unsigned recieve_id;
 	unsigned state;
 	unsigned flags;
 	unsigned pager;
