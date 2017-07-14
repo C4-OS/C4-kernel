@@ -52,7 +52,13 @@ uint32_t cap_space_share( cap_space_t *source,
                           uint32_t object,
                           uint32_t permissions )
 {
-	return CAP_INVALID_OBJECT;
+	cap_entry_t *entry = cap_table_lookup( source->table, object );
+
+	if ( !entry || (entry->permissions & CAP_SHARE) == false ){
+		return CAP_INVALID_OBJECT;
+	}
+
+	return cap_space_insert( dest, entry );
 }
 
 uint32_t cap_space_insert( cap_space_t *space, cap_entry_t *entry ){
@@ -71,6 +77,10 @@ bool cap_space_replace( cap_space_t *space,
 {
 	cap_entry_t *old_entry = cap_table_lookup( space->table, object );
 
+	if ( !old_entry ){
+		return false;
+	}
+
 	// find the owning capability space of the object to make sure we have
 	// permission to modify it's entries
 	cap_space_t *root_space = cap_entry_root_space( old_entry );
@@ -87,8 +97,10 @@ bool cap_space_replace( cap_space_t *space,
 bool cap_space_remove( cap_space_t *space, uint32_t object ){
 	cap_entry_t *entry = cap_table_lookup( space->table, object );
 
-	// find the owning capability space of the object to make sure we have
-	// permission to modify it's entries
+	if ( !entry ){
+		return false;
+	}
+
 	cap_space_t *root_space = cap_entry_root_space( entry );
 	cap_entry_t *space_entry = cap_space_root_entry( root_space );
 
@@ -104,7 +116,28 @@ bool cap_space_restrict( cap_space_t *space,
                          uint32_t object,
                          uint32_t permissions )
 {
-	return false;
+	cap_entry_t *entry = cap_table_lookup( space->table, object );
+
+	if ( !entry ){
+		return false;
+	}
+
+	cap_space_t *root_space = cap_entry_root_space( entry );
+	cap_entry_t *space_entry = cap_space_root_entry( root_space );
+
+	// check that the capability space can be modified
+	if ( (space_entry->permissions & CAP_MODIFY) == false ){
+		return false;
+	}
+
+	// ensure that the specified permissions are a subset of the current
+	// permissions it already has
+	if ( (entry->permissions & permissions) != permissions ){
+		return false;
+	}
+
+	entry->permissions = permissions;
+	return true;
 }
 
 // XXX: capability tables are page-aligned, so this returns the address of

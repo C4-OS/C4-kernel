@@ -15,7 +15,8 @@ enum {
 // Capability types, used in the `type` bitfield
 enum {
     CAP_TYPE_NULL,
-    CAP_TYPE_IPC_ENDPOINT,
+    CAP_TYPE_IPC_SYNC_ENDPOINT,
+    CAP_TYPE_IPC_ASYNC_ENDPOINT,
     CAP_TYPE_CAP_SPACE,
     CAP_TYPE_ADDR_SPACE,
     CAP_TYPE_THREAD,
