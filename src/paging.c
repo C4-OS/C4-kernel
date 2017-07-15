@@ -18,10 +18,10 @@ void page_fault_message( uintptr_t address, uintptr_t ip, unsigned perms ){
 		.data = { address, ip, perms },
 	};
 
-	debug_printf( "=== sending a page fault message to %u, address: %p\n",
+	debug_printf( "=== sending a page fault message to %p, address: %p\n",
 		cur->pager, address );
 
 	SET_FLAG( cur, THREAD_FLAG_FAULTED );
-	message_send( &faultmsg, cur->pager );
+	message_send( cur->pager, &faultmsg );
 	sched_thread_yield( );
 }

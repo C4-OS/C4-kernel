@@ -19,10 +19,8 @@ bool interrupt_callback( unsigned num, unsigned flags ){
 		}
 	};
 
-	// TODO: maybe change message_send_async() to take a thread_t argument
-	//       rather than a thread id, so it doesn't have to unnecessarily
-	//       do thread lookups
-	message_send_async( &msg, thread->id );
+	//message_send_async( &msg, thread->id );
+	// TODO: send to an endpoint, once that's implemented
 
 	return true;
 }

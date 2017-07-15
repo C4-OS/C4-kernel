@@ -168,10 +168,13 @@ void test_thread_client( void ){
 	debug_printf( "sup man\n" );
 
 	while ( true ){
+		asm volatile ("hlt");
+		/*
 		message_t buf;
 
-		//debug_printf( "sup man\n"j);
-		message_recieve( &buf, 0 );
+		debug_printf( "sup man\n"j);
+		//message_recieve( &buf, 0 );
+		message_recieve( queue, &buf );
 
 		debug_printf( "got a message from %u: %u, type: 0x%x\n",
 		              buf.sender, buf.data[0], buf.type );
@@ -179,6 +182,7 @@ void test_thread_client( void ){
 		if ( n % 4 == 0 ){
 			//message_send( &buf, 3 );
 		}
+		*/
 	}
 }
 
@@ -212,7 +216,11 @@ void arch_init( multiboot_header_t *header ){
 	region_init_global( (void *)(KERNEL_BASE + 0x400000) );
 	debug_puts( "done\n" );
 
-	debug_puts( "Initializing address space structures..." );
+	debug_puts( "Initializing capability space structures... " );
+	//cap_space_init( );
+	debug_puts( "done\n" );
+
+	debug_puts( "Initializing address space structures... " );
 	addr_space_init( );
 	debug_puts( "done\n" );
 
@@ -232,11 +240,10 @@ void arch_init( multiboot_header_t *header ){
 	}
 
 	sigma0_load( sigma0, &bootinfo );
-	//sched_add_thread( thread_create_kthread( test_thread_client ));
 
-	register_interrupt( INTERRUPT_TIMER,    timer_handler );
+	sched_add_thread( thread_create_kthread( test_thread_client ));
+	register_interrupt( INTERRUPT_TIMER, timer_handler );
 
 	asm volatile ( "sti" );
-
 	for ( ;; );
 }

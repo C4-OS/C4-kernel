@@ -26,7 +26,7 @@ enum {
 
 enum {
 	SYSCALL_INFO_GET_ID,
-	SYSCALL_INFO_GET_PAGER,
+	//SYSCALL_INFO_GET_PAGER,
 };
 
 // called from the appropriate syscall interface for the platform,

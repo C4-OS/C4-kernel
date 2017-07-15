@@ -2,8 +2,8 @@
 #define _C4_THREAD_H 1
 #include <c4/arch/thread.h>
 #include <c4/paging.h>
-#include <c4/message.h>
 #include <c4/mm/addrspace.h>
+#include <c4/capability.h>
 
 enum {
 	THREAD_FLAG_NONE        = 0,
@@ -34,23 +34,34 @@ typedef struct thread_node {
 	thread_list_t *list;
 } thread_node_t;
 
+#include <c4/message.h>
+
 typedef struct thread {
 	thread_regs_t registers;
-	addr_space_t  *addr_space;
 	void          *kernel_stack;
+
+	addr_space_t  *addr_space;
+	cap_space_t   *cap_space;
+	// pointer to IPC endpoint which is used to communicate with the pager
+	// TODO: hmm, objects in capabilities are going to need their own
+	//       reference counting, since storing the capability entry itself
+	//       here isn't an option. If the capability entry changes, then the
+	//       object which is pointed to might be a different endpoint, or
+	//       maybe not even an endpoint at all. Definitely a security issue.
+	msg_queue_t   *pager;
 
 	thread_node_t intern;
 	thread_node_t sched;
-	thread_list_t waiting;
+	//thread_list_t waiting;
 
 	unsigned id;
-	unsigned recieve_id;
+	//unsigned recieve_id;
 	unsigned state;
 	unsigned flags;
-	unsigned pager;
+	//unsigned pager;
 
-	message_t       message;
-	message_queue_t async_queue;
+	message_t message;
+	//message_queue_t async_queue;
 } thread_t;
 
 void init_threading( void );

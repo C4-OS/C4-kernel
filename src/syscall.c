@@ -4,6 +4,9 @@
 #include <c4/thread.h>
 #include <c4/scheduler.h>
 #include <c4/mm/addrspace.h>
+#include <c4/capability.h>
+#include <c4/error.h>
+#include <stddef.h>
 
 typedef uintptr_t arg_t;
 typedef int (*syscall_func_t)( arg_t a, arg_t b, arg_t c, arg_t d );
@@ -64,7 +67,7 @@ static int syscall_create_thread( arg_t user_entry,
 		debug_printf( "%s: invalid argument, entry: %p, stack: %p\n",
 		              entry, stack );
 
-		return -1;
+		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
 	addr_space_t *space = cur->addr_space;
@@ -89,56 +92,116 @@ static int syscall_create_thread( arg_t user_entry,
 	debug_printf( ">>      stack: %p\n", thread->registers.esp );
 	debug_printf( ">>    current: %p\n", thread );
 
+	// TODO: return capability space address rather than thread id
 	return thread->id;
+}
+
+static int do_cap_check( thread_t *thread,
+                         cap_entry_t **entry,
+						 uint32_t object,
+                         uint32_t type,
+                         uint32_t permissions )
+{
+	if ( !thread->cap_space ){
+		debug_printf( "- invalid cap space! %u\n", thread->id );
+		return -C4_ERROR_PERMISSION_DENIED;
+	}
+
+	cap_entry_t *cap = cap_space_lookup( thread->cap_space, object );
+
+	if ( !cap || cap->type != CAP_TYPE_IPC_SYNC_ENDPOINT ){
+		debug_printf( "- invalid cap/cap type! %u\n", thread->id );
+		return -C4_ERROR_INVALID_OBJECT;
+	}
+
+	if ( (cap->permissions & permissions) != permissions ){
+		debug_printf( "- invalid permissions! %u\n", thread->id );
+		return -C4_ERROR_PERMISSION_DENIED;
+	}
+
+    *entry = cap;
+    return C4_ERROR_NONE;
 }
 
 static int syscall_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
-	//unsigned id = sched_current_thread()->id;
+	cap_entry_t *cap = NULL;
 
-	//debug_printf( "%u: trying to send message %p to %u\n", id, msg, target );
+	int check = do_cap_check( sched_current_thread(), &cap, target,
+	                          CAP_TYPE_IPC_SYNC_ENDPOINT, CAP_MODIFY );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
-		return -1;
+		//return -1;
+		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
-	message_send( msg, target );
+	//message_send( msg, target );
+	message_send( cap->object, msg );
 
 	return 0;
 }
 
 static int syscall_recieve( arg_t buffer, arg_t from, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
-	//unsigned id = sched_current_thread()->id;
+	cap_entry_t *cap = NULL;
 
-	//debug_printf( "%u: trying to recieve message at %p\n", id, msg );
+	int check = do_cap_check( sched_current_thread(), &cap, from,
+	                          CAP_TYPE_IPC_SYNC_ENDPOINT, CAP_ACCESS );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
-		return -1;
+		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
-	message_recieve( msg, from );
+	//message_recieve( msg, from );
+	message_recieve( cap->object, msg );
 
 	return 0;
 }
 
 static int syscall_send_async( arg_t buffer, arg_t to, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
+	cap_entry_t *cap = NULL;
+
+	int check = do_cap_check( sched_current_thread(), &cap, to,
+	                          CAP_TYPE_IPC_ASYNC_ENDPOINT, CAP_MODIFY );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
-
-		return false;
+		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
-	return message_send_async( msg, to );
+	//return message_send_async( msg, to );
+	return message_send_async( cap->object, msg );
 }
 
-static int syscall_recieve_async( arg_t buffer, arg_t flags, arg_t c, arg_t d )
+static int syscall_recieve_async( arg_t buffer,
+                                  arg_t from,
+                                  arg_t flags,
+                                  arg_t d )
 {
 	message_t *msg = (message_t *)buffer;
+	cap_entry_t *cap = NULL;
+
+	int check = do_cap_check( sched_current_thread(), &cap, from,
+	                          CAP_TYPE_IPC_ASYNC_ENDPOINT, CAP_ACCESS );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
@@ -146,7 +209,8 @@ static int syscall_recieve_async( arg_t buffer, arg_t flags, arg_t c, arg_t d )
 		return false;
 	}
 
-	return message_recieve_async( msg, flags );
+	//return message_recieve_async( msg, flags );
+	return message_recieve_async( cap->object, msg, flags );
 }
 
 
@@ -181,9 +245,11 @@ static int syscall_info( arg_t action, arg_t b, arg_t c, arg_t d ){
 			return current->id;
 			break;
 
+			/*
 		case SYSCALL_INFO_GET_PAGER:
 			return current->pager;
 			break;
+			*/
 
 		default:
 			break;

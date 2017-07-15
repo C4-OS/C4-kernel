@@ -47,6 +47,10 @@ void cap_space_free( cap_space_t *space ){
 	slab_free( &cap_space_slab, space );
 }
 
+cap_entry_t *cap_space_lookup( cap_space_t *space, uint32_t object ){
+	return cap_table_lookup( space->table, object );
+}
+
 uint32_t cap_space_share( cap_space_t *source,
                           cap_space_t *dest,
                           uint32_t object,

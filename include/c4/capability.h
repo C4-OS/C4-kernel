@@ -74,6 +74,7 @@ cap_space_t *cap_entry_root_space( cap_entry_t *entry );
 void         cap_space_init( void );
 cap_space_t *cap_space_create( void );
 void         cap_space_free( cap_space_t *space );
+cap_entry_t *cap_space_lookup( cap_space_t *space, uint32_t object );
 uint32_t     cap_space_share( cap_space_t *source,
                               cap_space_t *dest,
                               uint32_t object,

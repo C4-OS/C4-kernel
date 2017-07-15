@@ -51,6 +51,11 @@ typedef struct message {
 	unsigned long data[6];
 } message_t;
 
+typedef struct msg_queue msg_queue_t;
+typedef struct msg_queue_async msg_queue_async_t;
+
+#include <c4/thread.h>
+
 // TODO: consider implementing generic linked list structure, or macro library
 //       or something
 typedef struct message_node {
@@ -59,18 +64,31 @@ typedef struct message_node {
 	message_t message;
 } message_node_t;
 
-typedef struct message_queue {
+typedef struct msg_queue {
+	// TODO: locking
+	thread_list_t recievers;
+	thread_list_t senders;
+} msg_queue_t;
+
+typedef struct msg_queue_async {
+	// TODO: locking
+	thread_list_t  recievers;
 	message_node_t *first;
 	message_node_t *last;
 
 	unsigned elements;
-} message_queue_t;
+} msg_queue_async_t;
 
-void message_recieve( message_t *msg, unsigned from );
-bool message_try_send( message_t *msg, unsigned id );
-void message_send( message_t *msg, unsigned id );
+msg_queue_t *message_queue_create( void );
+msg_queue_async_t *message_queue_async_create( void );
+void message_queue_free( msg_queue_t *queue );
+void message_queue_async_free( msg_queue_async_t *queue );
 
-bool message_send_async( message_t *msg, unsigned to );
-bool message_recieve_async( message_t *msg, unsigned flags );
+void message_recieve( msg_queue_t *queue, message_t *msg );
+bool message_try_send( msg_queue_t *queue, message_t *msg );
+void message_send( msg_queue_t *queue, message_t *msg );
+
+bool message_send_async( msg_queue_async_t *queue, message_t *msg );
+bool message_recieve_async( msg_queue_async_t *queue, message_t *msg, unsigned flags );
 
 #endif

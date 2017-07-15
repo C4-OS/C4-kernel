@@ -37,6 +37,7 @@ thread_t *thread_create( void (*entry)(void),
 	ret->id         = thread_counter++;
 	ret->addr_space = space;
 	ret->flags      = flags;
+	ret->cap_space  = NULL;
 
 	thread_list_insert( &thread_global_list, &ret->intern );
 
