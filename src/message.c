@@ -434,9 +434,11 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 
 	switch ( msg->type ){
 		// output one character to the debug log
+		/*
 		case MESSAGE_TYPE_DEBUG_PUTCHAR:
 			debug_putchar( msg->data[0] );
 			break;
+		*/
 
 		// intercepts message and prints, without sending to the reciever
 		case MESSAGE_TYPE_DEBUG_PRINT:

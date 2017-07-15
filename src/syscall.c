@@ -20,6 +20,7 @@ static int syscall_recieve_async( arg_t a, arg_t b, arg_t c, arg_t d );
 // TODO: look into replacing this syscall with io bitmap
 static int syscall_ioport( arg_t a, arg_t b, arg_t c, arg_t d );
 static int syscall_info( arg_t a, arg_t b, arg_t c, arg_t d );
+static int syscall_debug_putchar( arg_t a, arg_t b, arg_t c, arg_t d );
 
 static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_exit,
@@ -30,6 +31,7 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_recieve_async,
 	syscall_ioport,
 	syscall_info,
+	syscall_debug_putchar,
 };
 
 int syscall_dispatch( unsigned num, arg_t a, arg_t b, arg_t c, arg_t d ){
@@ -256,4 +258,10 @@ static int syscall_info( arg_t action, arg_t b, arg_t c, arg_t d ){
 	}
 
 	return -1;
+}
+
+static int syscall_debug_putchar( arg_t character, arg_t b, arg_t c, arg_t d ){
+	debug_putchar( character );
+
+	return 0;
 }
