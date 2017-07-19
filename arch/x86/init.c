@@ -135,6 +135,7 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 
 	thread_t *new_thread =
 		thread_create( func, new_space, new_stack, THREAD_FLAG_USER );
+	new_thread->cap_space = cap_space_create();
 
 	set_page_dir( page_get_kernel_dir( ));
 
@@ -217,7 +218,7 @@ void arch_init( multiboot_header_t *header ){
 	debug_puts( "done\n" );
 
 	debug_puts( "Initializing capability space structures... " );
-	//cap_space_init( );
+	cap_space_init( );
 	debug_puts( "done\n" );
 
 	debug_puts( "Initializing address space structures... " );
