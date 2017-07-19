@@ -27,6 +27,8 @@ cap_space_t *cap_space_create( void ){
 			return NULL;
 		}
 
+		ret->table = table;
+
 		// Insert the capability space into it's own table as entry 0
 		cap_entry_t entry = {
 			.type        = CAP_TYPE_CAP_SPACE,
@@ -34,7 +36,6 @@ cap_space_t *cap_space_create( void ){
 			.object      = ret,
 		};
 
-		ret->table = table;
 		cap_table_replace( ret->table, 0, &entry );
 	}
 
@@ -89,6 +90,7 @@ bool cap_space_replace( cap_space_t *space,
 	// permission to modify it's entries
 	cap_space_t *root_space = cap_entry_root_space( old_entry );
 	cap_entry_t *space_entry = cap_space_root_entry( root_space );
+	debug_printf( "space: %p, entry: %p\n", root_space, space_entry );
 
 	if ( space_entry->permissions & CAP_MODIFY ){
 		*old_entry = *entry;
@@ -150,7 +152,8 @@ bool cap_space_restrict( cap_space_t *space,
 cap_space_t *cap_entry_root_space( cap_entry_t *entry ){
 	uintptr_t ptr = (uintptr_t)entry;
 
-	return (void *)(ptr & ~(PAGE_SIZE - 1));
+	cap_entry_t *temp = (void *)(ptr & ~(PAGE_SIZE - 1));
+	return temp->object;
 }
 
 cap_entry_t *cap_space_root_entry( cap_space_t *space ){

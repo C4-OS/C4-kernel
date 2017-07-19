@@ -123,3 +123,8 @@ thread_t *thread_get_id( unsigned id ){
 
 	return NULL;
 }
+
+void thread_set_addr_space( thread_t *thread, addr_space_t *aspace ){
+	// TODO: locking/atomic set
+	thread->addr_space = aspace;
+}

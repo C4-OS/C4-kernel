@@ -99,10 +99,12 @@ int syscall_dispatch( unsigned num, arg_t a, arg_t b, arg_t c, arg_t d ){
 	return syscall_table[num](a, b, c, d);
 }
 
-// TODO: consider moving this to capability.c
+// TODO: consider moving these functions to capability.c
+
+// check whether the requested permissions are compatible with this object
 static int do_cap_check( thread_t *thread,
                          cap_entry_t **entry,
-						 uint32_t object,
+                         uint32_t object,
                          uint32_t type,
                          uint32_t permissions )
 {
@@ -113,7 +115,7 @@ static int do_cap_check( thread_t *thread,
 
 	cap_entry_t *cap = cap_space_lookup( thread->cap_space, object );
 
-	if ( !cap || cap->type != CAP_TYPE_IPC_SYNC_ENDPOINT ){
+	if ( !cap || cap->type != type ){
 		debug_printf( "- invalid cap/cap type! %u\n", thread->id );
 		return -C4_ERROR_INVALID_OBJECT;
 	}
@@ -127,6 +129,36 @@ static int do_cap_check( thread_t *thread,
     return C4_ERROR_NONE;
 }
 
+// check whether a new object can be added in the current capability space,
+// and reserve an entry if so
+static int do_newobj_cap_check( thread_t *thread ){
+	if ( !thread->cap_space ){
+		debug_printf( "- invalid cap space! %u\n", thread->id );
+		return -C4_ERROR_PERMISSION_DENIED;
+	}
+
+	cap_entry_t *root_entry = cap_space_root_entry( thread->cap_space );
+
+	if (( root_entry->permissions & CAP_MODIFY ) == false ){
+		return -C4_ERROR_PERMISSION_DENIED;
+	}
+
+	// reserve a null entry in the capability table
+	cap_entry_t entry = {
+		.type        = CAP_TYPE_RESERVED,
+		.permissions = 0,
+		.object      = NULL,
+	};
+
+	uint32_t object = cap_space_insert( thread->cap_space, &entry );
+
+	// if an entry couldn't be inserted, it's out of space, so return an error.
+	if ( object == CAP_INVALID_OBJECT ){
+		return -C4_ERROR_ENTITY_FULL;
+	}
+
+	return object;
+}
 
 static int syscall_thread_exit( arg_t a, arg_t b, arg_t c, arg_t d ){
 	thread_t *cur = sched_current_thread( );
@@ -149,7 +181,9 @@ static int syscall_thread_create( arg_t user_entry,
 
 	thread_t *thread;
 	thread_t *cur = sched_current_thread( );
+	int check = 0;
 
+	// error checking, make sure arguments and capabilities are valid
 	if ( !is_user_address( entry ) || !is_user_address( stack ))
 	{
 		debug_printf( "%s: invalid argument, entry: %p, stack: %p\n",
@@ -158,8 +192,16 @@ static int syscall_thread_create( arg_t user_entry,
 		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
+	if (( check = do_newobj_cap_check( cur )) < 0 ){
+		return check;
+	}
+
+	// thread inherents the parent's address space by default
 	addr_space_t *space = cur->addr_space;
 
+	// TODO: remove this, this will be done on the user side with
+	//       syscall_thread_set_addrspace
+	/*
 	if ( flags & THREAD_CREATE_FLAG_CLONE ){
 		space = addr_space_clone( space );
 
@@ -169,10 +211,19 @@ static int syscall_thread_create( arg_t user_entry,
 		addr_space_map_self( space, ADDR_MAP_ADDR );
 		addr_space_set( cur->addr_space );
 	}
+	*/
 
 	thread = thread_create( entry, space, stack, THREAD_FLAG_USER );
-
 	sched_thread_stop( thread );
+
+	uint32_t object = check;
+	cap_entry_t cap_entry = (cap_entry_t){
+		.type        = CAP_TYPE_THREAD,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		.object      = thread,
+	};
+
+	cap_space_replace( cur->cap_space, object, &cap_entry );
 	sched_add_thread( thread );
 
 	debug_printf( ">> created user thread %u\n", thread->id );
@@ -181,11 +232,37 @@ static int syscall_thread_create( arg_t user_entry,
 	debug_printf( ">>    current: %p\n", thread );
 
 	// TODO: return capability space address rather than thread id
-	return thread->id;
+	//return thread->id;
+	return object;
 }
 
-static int syscall_thread_set_addrspace( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_thread_set_addrspace( arg_t thread,
+                                         arg_t aspace,
+                                         arg_t c, arg_t d )
+{
+	thread_t *cur = sched_current_thread();
+	cap_entry_t *cap = NULL;
+
+	thread_t *target = NULL;
+	addr_space_t *new_aspace = NULL;
+
+	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+	target = cap->object;
+
+	check = do_cap_check( cur, &cap, aspace, CAP_TYPE_ADDR_SPACE, CAP_ACCESS );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+	new_aspace = cap->object;
+
+	thread_set_addr_space( target, new_aspace );
+	// TODO: check to see if the calling thread is the target thread,
+	//       and switch to the new address space before returning
+
+	return C4_ERROR_NONE;
 }
 
 static int syscall_thread_set_capspace( SYSCALL_ARGS ){
@@ -206,6 +283,12 @@ static int syscall_thread_set_priority( SYSCALL_ARGS ){
 
 static int syscall_sync_create( SYSCALL_ARGS ){
 	return -C4_ERROR_NOT_IMPLEMENTED;
+	/*
+	thread_t *cur = sched_current_thread();
+	int check = 0;
+
+	if (( check = do_newobj_cap_check( cur )))
+	*/
 }
 
 static int syscall_sync_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
@@ -303,7 +386,24 @@ static int syscall_async_recieve( arg_t buffer,
 }
 
 static int syscall_addrspace_create( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+	thread_t *cur = sched_current_thread();
+	int check = 0;
+
+	if (( check = do_newobj_cap_check( cur )) < 0 ){
+		return check;
+	}
+
+	uint32_t object = check;
+	addr_space_t *addr = addr_space_clone( addr_space_kernel( ));
+	cap_entry_t entry = (cap_entry_t){
+		.type        = CAP_TYPE_ADDR_SPACE,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		.object      = addr,
+	};
+
+	cap_space_replace( cur->cap_space, object, &entry );
+
+	return object;
 }
 
 static int syscall_addrspace_map( SYSCALL_ARGS ){
@@ -334,8 +434,28 @@ static int syscall_cspace_cap_remove( SYSCALL_ARGS ){
 	return -C4_ERROR_NOT_IMPLEMENTED;
 }
 
-static int syscall_cspace_cap_restrict( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_cspace_cap_restrict( arg_t capspace,
+                                        arg_t object,
+                                        arg_t permissions,
+                                        arg_t d )
+{
+	thread_t *cur = sched_current_thread();
+	cap_entry_t *cap = NULL;
+	int check = do_cap_check( cur, &cap, capspace,
+	                          CAP_TYPE_CAP_SPACE, CAP_MODIFY );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	cap_space_t *target = cap->object;
+	bool changed = cap_space_restrict( target, object, permissions );
+
+	if ( !changed ){
+		return -C4_ERROR_PERMISSION_DENIED;
+	}
+
+	return C4_ERROR_NONE;
 }
 
 static int syscall_cspace_cap_share( SYSCALL_ARGS ){

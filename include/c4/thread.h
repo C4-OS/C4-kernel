@@ -78,8 +78,8 @@ void thread_list_insert( thread_list_t *list, thread_node_t *node );
 void thread_list_remove( thread_node_t *node );
 thread_t *thread_list_pop( thread_list_t *list );
 thread_t *thread_list_peek( thread_list_t *list );
-
 thread_t *thread_get_id( unsigned id );
+void thread_set_addr_space( thread_t *thread, addr_space_t *aspace );
 
 // functions below are implemented in arch-specific code
 void thread_set_init_state( thread_t *thread,
