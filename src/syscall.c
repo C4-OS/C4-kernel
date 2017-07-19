@@ -476,10 +476,7 @@ static int syscall_cspace_cap_restrict( arg_t capspace,
 		return check;
 	}
 
-	cap_space_t *target = cap->object;
-	bool changed = cap_space_restrict( target, object, permissions );
-
-	if ( !changed ){
+	if ( !cap_space_restrict( cap->object, object, permissions )){
 		return -C4_ERROR_PERMISSION_DENIED;
 	}
 
