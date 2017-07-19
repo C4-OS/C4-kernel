@@ -282,13 +282,24 @@ static int syscall_thread_set_priority( SYSCALL_ARGS ){
 }
 
 static int syscall_sync_create( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
-	/*
 	thread_t *cur = sched_current_thread();
 	int check = 0;
 
-	if (( check = do_newobj_cap_check( cur )))
-	*/
+	if (( check = do_newobj_cap_check( cur )) < 0 ){
+		return check;
+	}
+
+	uint32_t object = check;
+	msg_queue_t *msgq = message_queue_create();
+	cap_entry_t entry = {
+		.type = CAP_TYPE_IPC_SYNC_ENDPOINT,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		.object = msgq,
+	};
+
+	cap_space_replace( cur->cap_space, object, &entry );
+
+	return object;
 }
 
 static int syscall_sync_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
@@ -337,7 +348,24 @@ static int syscall_sync_recieve( arg_t buffer, arg_t from, arg_t c, arg_t d ){
 }
 
 static int syscall_async_create( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+	thread_t *cur = sched_current_thread();
+	int check = 0;
+
+	if (( check = do_newobj_cap_check( cur )) < 0 ){
+		return check;
+	}
+
+	uint32_t object = check;
+	msg_queue_async_t *msgq = message_queue_async_create();
+	cap_entry_t entry = {
+		.type = CAP_TYPE_IPC_ASYNC_ENDPOINT,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		.object = msgq,
+	};
+
+	cap_space_replace( cur->cap_space, object, &entry );
+
+	return object;
 }
 
 static int syscall_async_send( arg_t buffer, arg_t to, arg_t c, arg_t d ){
