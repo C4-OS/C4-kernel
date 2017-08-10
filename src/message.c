@@ -357,6 +357,7 @@ static inline bool message_map_to( message_t *msg,
 	unsigned long perms  = msg->data[3];
 	bool should_send = false;
 
+	/*
 	addr_entry_t ent = (addr_entry_t){
 		.virtual     = from,
 		.size        = size,
@@ -391,6 +392,7 @@ static inline bool message_map_to( message_t *msg,
 			should_send = true;
 		}
 	}
+	*/
 
 	return should_send;
 }
@@ -403,6 +405,7 @@ static inline bool message_unmap( message_t *msg, thread_t *target ){
 	uintptr_t addr = msg->data[0];
 	bool should_send = false;
 
+	/*
 	if ( target->state == SCHED_STATE_STOPPED ){
 		addr_space_set( target->addr_space );
 		addr_space_unmap( target->addr_space, addr );
@@ -411,11 +414,13 @@ static inline bool message_unmap( message_t *msg, thread_t *target ){
 	} else {
 		should_send = true;
 	}
+	*/
 
 	return should_send;
 }
 
 static inline void message_request_phys( message_t *msg ){
+	/*
 	thread_t *current = sched_current_thread( );
 
 	addr_entry_t ent = (addr_entry_t){
@@ -426,6 +431,7 @@ static inline void message_request_phys( message_t *msg ){
 	};
 
 	addr_space_insert_map( current->addr_space, &ent );
+	*/
 }
 
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){

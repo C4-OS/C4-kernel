@@ -76,6 +76,33 @@ static void bootinfo_init( bootinfo_t *info, multiboot_header_t *header ){
 	}
 }
 
+static void memmaps_init( multiboot_header_t *mboot ){
+	if ( FLAG( mboot, MULTIBOOT_FLAG_MMAP )){
+		uintptr_t map = low_phys_to_virt( mboot->mmap_addr );
+
+		debug_printf( "have memory map: %p (%u bytes)\n",
+		              map, mboot->mmap_length );
+
+		for ( size_t offset = 0; offset < mboot->mmap_length; ){
+			multiboot_mem_map_t *foo = (void *)(map + offset);
+
+			uintptr_t a = foo->addr_high;
+			uintptr_t b = a + foo->len_high;
+
+			char *s = (foo->type == MULTIBOOT_MEM_AVAILABLE)
+			            ? "available"
+			            : "reserved";
+
+			debug_printf( "%p (%u)> %p -> %p (%u: %s)\n",
+			              foo, foo->size, a, b, foo->type, s );
+			offset += foo->size + sizeof(foo->size);
+		}
+
+	} else {
+		debug_printf( "don't have memory map!\n" );
+	}
+}
+
 void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	addr_space_t *new_space = addr_space_clone( addr_space_kernel( ));
 
@@ -94,41 +121,26 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	                       (PAGE_SIZE - (func_size % PAGE_SIZE));
 
 	uintptr_t data_start = 0xd0000000;
-	uintptr_t data_end   = 0xd0800000;
 
 	void *func      = (void *)code_start;
 	void *new_stack = (void *)(data_start + 0xff8);
 
-	ent = (addr_entry_t){
-		.virtual     = (uintptr_t)BOOTINFO_ADDR,
-		.physical    = 0x800000,
-		.size        = 1,
-		.permissions = PAGE_READ,
-	};
+	// TODO: cut these from a block of memory found in memmaps_init()
+	phys_frame_t *info = phys_frame_create( 0x800000, 1, 0 );
+	phys_frame_t *code = phys_frame_create( 0x810000, 64, 0 );
+	phys_frame_t *data = phys_frame_create( 0x850000, 64, 0 );
 
+	addr_space_make_ent( &ent, (uintptr_t)BOOTINFO_ADDR, PAGE_READ, info );
 	addr_space_insert_map( new_space, &ent );
 
 	// bootinfo_addr defined in bootinfo.h
 	memcpy( BOOTINFO_ADDR, bootinfo, sizeof( bootinfo_t ));
 
-	ent = (addr_entry_t){
-		.virtual     = code_start,
-		.physical    = 0x810000,
-		.size        = (code_end - code_start) / PAGE_SIZE,
-		.permissions = PAGE_READ | PAGE_WRITE,
-	};
-
+	addr_space_make_ent( &ent, code_start, PAGE_READ | PAGE_WRITE, code );
 	addr_space_insert_map( new_space, &ent );
 
-	ent = (addr_entry_t){
-		.virtual     = data_start,
-		.physical    = 0x850000,
-		.size        = (data_end - data_start) / PAGE_SIZE,
-		.permissions = PAGE_READ | PAGE_WRITE,
-	};
-
+	addr_space_make_ent( &ent, data_start, PAGE_READ | PAGE_WRITE, data );
 	addr_space_insert_map( new_space, &ent );
-	addr_space_map_self( new_space, ADDR_MAP_ADDR );
 	debug_printf( "asdf: 0x%x\n", code_end );
 
 	memcpy( func, sigma0_addr, func_size );
@@ -165,7 +177,7 @@ multiboot_module_t *sigma0_find_module( multiboot_header_t *header ){
 }
 
 void test_thread_client( void ){
-	unsigned n = 0;
+	//unsigned n = 0;
 	debug_printf( "sup man\n" );
 
 	while ( true ){
@@ -196,6 +208,7 @@ void arch_init( multiboot_header_t *header ){
 	debug_puts( "Storing boot info... " );
 	bootinfo_init( &bootinfo, header );
 	debug_puts( "done\n" );
+	memmaps_init( header );
 
 	debug_puts( "Initializing GDT... " );
 	init_segment_descs( );
@@ -222,6 +235,7 @@ void arch_init( multiboot_header_t *header ){
 	debug_puts( "done\n" );
 
 	debug_puts( "Initializing address space structures... " );
+	phys_frame_init( );
 	addr_space_init( );
 	debug_puts( "done\n" );
 

@@ -90,7 +90,7 @@ bool cap_space_replace( cap_space_t *space,
 	// permission to modify it's entries
 	cap_space_t *root_space = cap_entry_root_space( old_entry );
 	cap_entry_t *space_entry = cap_space_root_entry( root_space );
-	debug_printf( "space: %p, entry: %p\n", root_space, space_entry );
+	//debug_printf( "space: %p, entry: %p\n", root_space, space_entry );
 
 	if ( space_entry->permissions & CAP_MODIFY ){
 		*old_entry = *entry;

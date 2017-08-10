@@ -7,6 +7,7 @@
 #include <c4/paging.h>
 
 static slab_t addr_space_slab;
+static slab_t phys_frame_slab;
 static addr_space_t *kernel_space;
 
 void addr_space_init( void ){
@@ -70,38 +71,34 @@ void addr_space_set( addr_space_t *space ){
 	set_page_dir( space->page_dir );
 }
 
-// map the entry map for the current address space to `addr` as user-readable
-void addr_space_map_self( addr_space_t *space, void *addr ){
-	addr_entry_t ent = {
-		.virtual     = (unsigned long)addr,
-		.physical    = (unsigned long)page_phys_addr( space->map ),
-		.size        = 1,
-		.permissions = PAGE_READ,
-	};
-
-	addr_space_insert_map( space, &ent );
+void addr_space_make_ent( addr_entry_t *ent,
+                          uintptr_t addr,
+                          unsigned permissions,
+                          phys_frame_t *frame )
+{
+	ent->addr        = addr;
+	ent->frame       = frame;
+	ent->permissions = permissions;
 }
 
 int addr_space_map( addr_space_t *a,
                     addr_space_t *b,
                     addr_entry_t *ent );
 
-int addr_space_grant( addr_space_t *a,
-                      addr_space_t *b,
-                      addr_entry_t *ent );
-
 int addr_space_unmap( addr_space_t *space, unsigned long address ){
 	return 0;
 }
 
 int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent ){
-	uintptr_t v_start = ent->virtual  - (ent->virtual  % PAGE_SIZE);
-	uintptr_t p_start = ent->physical - (ent->physical % PAGE_SIZE);
+	phys_frame_t *phys = ent->frame;
+	uintptr_t v_start = ent->addr     - (ent->addr     % PAGE_SIZE);
+	uintptr_t p_start = phys->address - (phys->address % PAGE_SIZE);
 
+	phys_frame_map( ent->frame );
 	addr_map_insert( space->map, ent );
-	page_reserve_phys_range( p_start, p_start + ent->size * PAGE_SIZE );
+	page_reserve_phys_range( p_start, p_start + phys->size * PAGE_SIZE );
 
-	for ( uintptr_t page = 0; page < ent->size * PAGE_SIZE; page += PAGE_SIZE )
+	for ( uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE )
 	{
 		void *v = (void *)(v_start + page);
 		void *p = (void *)(p_start + page);
@@ -113,16 +110,13 @@ int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent ){
 }
 
 int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent ){
-	uintptr_t v_start = ent->virtual  - (ent->virtual  % PAGE_SIZE);
+	phys_frame_t *phys = ent->frame;
+	uintptr_t v_start = ent->addr - (ent->addr  % PAGE_SIZE);
 
-	// TODO: keep track of whether physical pages are still reserved
-	//       by other processes or not
-	//       alternatively, just give the kernel a fixed-size pool of memory
-	//       so it doesn't need to keep track
 	//page_reserve_phys_range( p_start, p_start + ent->size * PAGE_SIZE );
-	debug_printf( "removing mapping 0x%x of size %u\n", v_start, ent->size );
+	debug_printf( "removing mapping 0x%x of size %u\n", v_start, phys->size );
 
-	for ( uintptr_t page = 0; page < ent->size * PAGE_SIZE; page += PAGE_SIZE )
+	for ( uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE )
 	{
 		void *v = (void *)(v_start + page);
 
@@ -131,9 +125,71 @@ int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent ){
 	}
 
 	addr_map_remove( space->map, ent );
+	phys_frame_unmap( ent->frame );
 
 	return 0;
 }
+
+void phys_frame_init( void ){
+	static bool initialized = false;
+
+	if ( !initialized ){
+		initialized = true;
+		slab_init_at( &phys_frame_slab, region_get_global(),
+		              sizeof( phys_frame_t ), NO_CTOR, NO_DTOR );
+	}
+}
+
+phys_frame_t *phys_frame_create( uintptr_t addr, size_t size, unsigned flags ){
+	phys_frame_t *ret = slab_alloc( &phys_frame_slab );
+
+	ret->address    = addr;
+	ret->size       = size;
+	ret->flags      = flags;
+	ret->references = 0;
+	ret->mappings   = 0;
+
+	return ret;
+}
+
+void phys_frame_map( phys_frame_t *phys ){
+	// TODO: locking
+	phys->mappings++;
+	phys->references++;
+}
+
+void phys_frame_unmap( phys_frame_t *phys ){
+	// TODO: locking
+	KASSERT( phys->mappings != 0 );
+	phys->mappings--;
+	phys->references++;
+}
+
+phys_frame_t *phys_frame_split( phys_frame_t *phys, size_t offset ){
+	// TODO: locking
+
+	if ( phys->mappings != 0 ){
+		// can't split a frame that is currently mapped
+		return NULL;
+	}
+
+	// resulting frame must be smaller than the original frame, and must
+	// be non-zero in size
+	if ( offset == 0 || offset >= phys->size ){
+		return NULL;
+	}
+
+	phys_frame_t *ret = phys_frame_create( phys->address + offset * PAGE_SIZE,
+	                                       phys->size - offset,
+	                                       phys->flags );
+
+	// adjust the size of the original frame
+	phys->size = offset;
+
+	return ret;
+}
+
+//phys_frame_t *phys_frame_join( )
 
 addr_map_t *addr_map_create( region_t *region ){
 	addr_map_t *ret = region_alloc( region );
@@ -163,11 +219,15 @@ void addr_map_dump( addr_map_t *map ){
 	debug_printf( "address map @ %p:\n", map );
 
 	for ( unsigned i = 0; i < map->used; i++ ){
-		unsigned long start = map->map[i].virtual;
-		unsigned long end   = start + map->map[i].size * PAGE_SIZE;
+		//unsigned long start = map->map[i].virtual;
+		//unsigned long end   = start + map->map[i].size * PAGE_SIZE;
+		unsigned long start = map->map[i].addr;
+		unsigned long end   = start + map->map[i].frame->size * PAGE_SIZE;
 
-		unsigned long p_start = map->map[i].physical;
-		unsigned long p_end   = p_start + map->map[i].size * PAGE_SIZE;
+		//unsigned long p_start = map->map[i].physical;
+		//unsigned long p_end   = p_start + map->map[i].size * PAGE_SIZE;
+		unsigned long p_start = map->map[i].frame->address;
+		unsigned long p_end   = p_start + map->map[i].frame->size * PAGE_SIZE;
 
 		debug_printf( "  entry %u : %x -> %x\n", i, start, end );
 		debug_printf( "          : %x -> %x\n", p_start, p_end );
@@ -204,8 +264,10 @@ static inline void addr_map_shift_downwards( addr_map_t *map, unsigned index ){
 
 addr_entry_t *addr_map_lookup( addr_map_t *map, unsigned long address ){
 	for ( unsigned i = 0; i < map->used; i++ ){
-		unsigned long start = map->map[i].virtual;
-		unsigned long end   = start + map->map[i].size * PAGE_SIZE;
+		//unsigned long start = map->map[i].virtual;
+		//unsigned long end   = start + map->map[i].size * PAGE_SIZE;
+		unsigned long start = map->map[i].addr;
+		unsigned long end   = start + map->map[i].frame->size * PAGE_SIZE;
 
 		if ( address >= start && address < end ){
 			return map->map + i;
@@ -213,57 +275,6 @@ addr_entry_t *addr_map_lookup( addr_map_t *map, unsigned long address ){
 	}
 
 	return NULL;
-}
-
-addr_entry_t *addr_map_split( addr_map_t *map,
-                              addr_entry_t *entry,
-                              unsigned long offset )
-{
-	if ( !entry ){
-		return NULL;
-	}
-
-	addr_entry_t temp = *entry;
-
-	temp.virtual  += offset * PAGE_SIZE;
-	temp.physical += offset * PAGE_SIZE;
-	temp.size     -= offset;
-	entry->size    = offset;
-
-	return addr_map_insert( map, &temp );
-}
-
-// "carve" out an entry from the middle of another existing entry
-addr_entry_t *addr_map_carve( addr_map_t *map, addr_entry_t *entry ){
-	addr_entry_t *temp = addr_map_lookup( map, entry->virtual );
-	addr_entry_t *ret  = NULL;
-
-
-	if ( !temp ){
-		return NULL;
-	}
-
-	uintptr_t off = (uintptr_t)entry->virtual - (uintptr_t)temp->virtual;
-	off = off / PAGE_SIZE;
-
-	// check to see if the requested region can actually be sliced out,
-	// if it's larger then return NULL to signal an error
-	if ( entry->size > temp->size - off ){
-		return NULL;
-	}
-
-	if ( off != 0 ){
-		temp = addr_map_split( map, temp, off );
-	}
-
-	ret = temp;
-
-
-	if ( entry->size < temp->size ){
-		temp = addr_map_split( map, temp, entry->size );
-	}
-
-	return ret;
 }
 
 void addr_map_remove( addr_map_t *map, addr_entry_t *entry ){
@@ -285,9 +296,11 @@ addr_entry_t *addr_map_insert( addr_map_t *map, addr_entry_t *entry ){
 	// traverse entry list looking for a place to insert the node,
 	// leaving -1 in 'placement' if the node should be placed at the end 
 	for ( unsigned i = 0; i < map->used; i++ ){
-		unsigned long start = map->map[i].virtual;
+		//unsigned long start = map->map[i].virtual;
+		unsigned long start = map->map[i].addr;
 
-		if ( entry->virtual < start ){
+		//if ( entry->virtual < start ){
+		if ( entry->addr < start ){
 			placement = i;
 			break;
 		}

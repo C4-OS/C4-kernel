@@ -434,16 +434,81 @@ static int syscall_addrspace_create( SYSCALL_ARGS ){
 	return object;
 }
 
-static int syscall_addrspace_map( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_addrspace_map( arg_t addrspace,
+                                  arg_t phys_frame,
+                                  arg_t address,
+                                  arg_t permissions )
+{
+	addr_space_t *space = NULL;
+	phys_frame_t *frame = NULL;
+	cap_entry_t *cap = NULL;
+
+	int check = do_cap_check( sched_current_thread(), &cap, addrspace,
+	                          CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	space = cap->object;
+
+	check = do_cap_check( sched_current_thread(), &cap, phys_frame,
+	                      CAP_TYPE_PHYS_MEMORY, CAP_ACCESS );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	frame = cap->object;
+
+	addr_entry_t ent;
+	addr_space_make_ent( &ent, address, permissions, frame );
+	// TODO: implement addr_space_map() which will check for overlapping
+	//       mappings
+	addr_space_insert_map( space, &ent );
+
+	return C4_ERROR_NONE;
 }
 
 static int syscall_addrspace_unmap( SYSCALL_ARGS ){
 	return -C4_ERROR_NOT_IMPLEMENTED;
 }
 
-static int syscall_phys_frame_split( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_phys_frame_split( arg_t phys_frame,
+                                     arg_t offset,
+                                     arg_t c,
+                                     arg_t d )
+{
+	int check = 0;
+	cap_entry_t *cap = NULL;
+	phys_frame_t *frame = NULL;
+	thread_t *cur = sched_current_thread();
+
+	check = do_cap_check( cur, &cap, phys_frame,
+	                      CAP_TYPE_PHYS_MEMORY, CAP_MODIFY );
+	if ( check < 0 ){
+		return check;
+	}
+
+	frame = cap->object;
+
+	if (( check = do_newobj_cap_check( cur )) < 0 ){
+		return check;
+	}
+
+	uint32_t object = check;
+	phys_frame_t *newframe = phys_frame_split( frame, offset );
+	if ( !newframe ){
+		return -C4_ERROR_INVALID_ARGUMENT;
+	}
+
+	// TODO: take a reference to newframe
+	cap_entry_t entry = (cap_entry_t){
+		.type        = CAP_TYPE_PHYS_MEMORY,
+		.permissions = cap->permissions,
+		.object      = newframe,
+	};
+
+	cap_space_replace( cur->cap_space, object, &entry );
+	return object;
 }
 
 static int syscall_phys_frame_join( SYSCALL_ARGS ){

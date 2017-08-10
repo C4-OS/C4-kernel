@@ -4,6 +4,17 @@
 #include <c4/mm/region.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
+
+// structure representing a linear block of physical memory
+typedef struct phys_frame {
+	// TODO locking, GC structure, etc
+	uintptr_t address;
+	size_t    size;
+	unsigned  flags;
+	unsigned  references;
+	unsigned  mappings;
+} phys_frame_t;
 
 // default location for address space memory maps, for use by userspace
 // threads
@@ -14,13 +25,10 @@
 #define ADDR_MAP_ADDR ((void *)(KERNEL_BASE - PAGE_SIZE * 2))
 
 typedef struct addr_node {
-	unsigned long virtual;
-	unsigned long physical;
-	unsigned long size;
-
-	unsigned references   : 22;
-	unsigned source       : 2;
-	unsigned permissions  : 3;
+	uintptr_t     addr;
+	phys_frame_t *frame;
+	//size_t        size;
+	unsigned      permissions;
 } __attribute__((packed)) addr_entry_t;
 
 enum {
@@ -59,29 +67,30 @@ addr_space_t *addr_space_reference( addr_space_t *space );
 addr_space_t *addr_space_kernel( void );
 void          addr_space_free( addr_space_t *space );
 void          addr_space_set( addr_space_t *space );
-void          addr_space_map_self( addr_space_t *space, void *addr );
+void          addr_space_make_ent( addr_entry_t *ent,
+                                   uintptr_t addr,
+                                   unsigned permissions,
+                                   phys_frame_t *frame );
 
 int addr_space_map( addr_space_t *a,
                     addr_space_t *b,
                     addr_entry_t *ent );
 
-int addr_space_grant( addr_space_t *a,
-                      addr_space_t *b,
-                      addr_entry_t *ent );
-
 int addr_space_unmap( addr_space_t *space, unsigned long address );
 int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent );
 int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent );
+
+void          phys_frame_init( void );
+phys_frame_t *phys_frame_create( uintptr_t addr, size_t size, unsigned flags );
+void          phys_frame_map( phys_frame_t *phys );
+void          phys_frame_unmap( phys_frame_t *phys );
+phys_frame_t *phys_frame_split( phys_frame_t *phys, size_t offset );
 
 addr_map_t *addr_map_create( region_t *region );
 void        addr_map_free( addr_map_t *map );
 void        addr_map_dump( addr_map_t *map );
 
 addr_entry_t *addr_map_lookup( addr_map_t *map, unsigned long address );
-addr_entry_t *addr_map_split( addr_map_t *map,
-                              addr_entry_t *entry,
-                              unsigned long offset );
-addr_entry_t *addr_map_carve( addr_map_t *map, addr_entry_t *entry );
 void          addr_map_remove( addr_map_t *map, addr_entry_t *entry );
 addr_entry_t *addr_map_insert( addr_map_t *map, addr_entry_t *entry );
 
