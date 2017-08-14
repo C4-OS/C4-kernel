@@ -24,7 +24,7 @@ page_dir_t *current_page_dir( void );
 page_dir_t *page_get_kernel_dir( void );
 page_dir_t *clone_page_dir( page_dir_t *dir );
 void        set_page_dir( page_dir_t *dir );
-void        page_reserve_phys_range( uintptr_t start, uintptr_t end );
+//void        page_reserve_phys_range( uintptr_t start, uintptr_t end );
 void       *page_phys_addr( void *vaddress );
 
 #endif

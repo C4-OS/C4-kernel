@@ -76,31 +76,98 @@ static void bootinfo_init( bootinfo_t *info, multiboot_header_t *header ){
 	}
 }
 
-static void memmaps_init( multiboot_header_t *mboot ){
-	if ( FLAG( mboot, MULTIBOOT_FLAG_MMAP )){
-		uintptr_t map = low_phys_to_virt( mboot->mmap_addr );
+#include <c4/arch/earlyheap.h>
 
-		debug_printf( "have memory map: %p (%u bytes)\n",
-		              map, mboot->mmap_length );
+typedef struct phys_memmap {
+	struct phys_memmap *next;
 
-		for ( size_t offset = 0; offset < mboot->mmap_length; ){
-			multiboot_mem_map_t *foo = (void *)(map + offset);
+	uintptr_t addr;
+	size_t    length;
+} phys_memmap_t;
 
-			uintptr_t a = foo->addr_high;
-			uintptr_t b = a + foo->len_high;
+static void dump_raw_memmaps( uintptr_t map, size_t length ){
+	for ( size_t offset = 0; offset < length; ){
+		multiboot_mem_map_t *foo = (void *)(map + offset);
 
-			char *s = (foo->type == MULTIBOOT_MEM_AVAILABLE)
-			            ? "available"
-			            : "reserved";
+		uintptr_t a = foo->addr_high;
+		uintptr_t b = a + foo->len_high;
 
-			debug_printf( "%p (%u)> %p -> %p (%u: %s)\n",
-			              foo, foo->size, a, b, foo->type, s );
-			offset += foo->size + sizeof(foo->size);
-		}
+		char *s = (foo->type == MULTIBOOT_MEM_AVAILABLE)
+			? "available"
+			: "reserved";
 
-	} else {
-		debug_printf( "don't have memory map!\n" );
+		debug_printf( "%p (%u)> %p -> %p (%u: %s)\n",
+					  foo, foo->size, a, b, foo->type, s );
+
+		offset += foo->size + sizeof(foo->size);
 	}
+}
+
+static void dump_cooked_memmaps( phys_memmap_t *maps ){
+	for ( phys_memmap_t *map = maps; map; map = map->next ){
+		debug_printf( "map %p > %p, %u bytes\n",
+					  map->addr, map->addr + map->length,
+					  map->length );
+	}
+}
+
+static phys_memmap_t *memmaps_init( multiboot_header_t *mboot,
+                                    phys_memmap_t **kmemptr )
+{
+	phys_memmap_t *ret = NULL;
+
+	if ( !FLAG( mboot, MULTIBOOT_FLAG_MMAP )){
+		debug_printf( "don't have memory map!\n" );
+		return NULL;
+	}
+
+	uintptr_t map = low_phys_to_virt( mboot->mmap_addr );
+
+	debug_printf( "have memory map: %p (%u bytes)\n",
+				  map, mboot->mmap_length );
+
+	dump_raw_memmaps( map, mboot->mmap_length );
+
+	for ( size_t offset = 0; offset < mboot->mmap_length; ){
+		multiboot_mem_map_t *foo = (void *)(map + offset);
+		offset += foo->size + sizeof(foo->size);
+
+		// Only register memory above the 1MB mark, since grub usually
+		// puts all the boot info in low memory. Not that it's used after
+		// boot anyway, but it's a small amount of memory so might as
+		// well keep it around just in case.
+		if ( foo->type == MULTIBOOT_MEM_AVAILABLE && foo->addr_high >= 0x100000 ){
+			phys_memmap_t *nmap = kealloc( sizeof( phys_memmap_t ));
+			KASSERT( nmap != NULL );
+
+			nmap->next       = ret;
+			nmap->addr       = foo->addr_high;
+			nmap->length     = foo->len_high;
+			ret = nmap;
+
+			// TODO: configurable kernel memory size,
+			//       this reserves 8MB from the region starting at 1MB,
+			//       which is assumed to exist
+			// TODO: better code here once new paging stuff works
+			if ( nmap->addr == 0x100000 ){
+				KASSERT( nmap->length > 0x800000 );
+				phys_memmap_t *kmap = kealloc( sizeof( phys_memmap_t ));
+				KASSERT( kmap != NULL );
+
+				//kmap->addr        = nmap->addr;
+				// XXX: start at 4MB, all mapped for the kernel at boot
+				kmap->addr        = 0x400000;
+				kmap->length      = 0x800000;
+				kmap->next        = NULL;
+				*kmemptr = kmap;
+
+				nmap->addr       += 0x800000;
+				nmap->length     -= 0x800000;
+			}
+		}
+	}
+
+	return ret;
 }
 
 void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
@@ -201,14 +268,38 @@ void test_thread_client( void ){
 
 #include <c4/mm/addrspace.h>
 
+static void init_memory( phys_memmap_t *mem ){
+	static region_t region;
+	size_t npages = mem->length / PAGE_SIZE;
+	bitmap_ent_t *map = kealloc( npages / 8 );
+
+	debug_puts( "Initializing physical page map... ");
+	region_init_at( &region, (void *)mem->addr,
+	                map, npages,
+	                PAGE_READ | PAGE_WRITE | PAGE_SUPERVISOR,
+	                REGION_MODE_PHYSICAL );
+	debug_puts( "done\n" );
+
+	debug_puts( "Initializing more paging structures... ");
+	init_paging( &region );
+	debug_puts( "done\n" );
+
+	debug_puts( "Initializing kernel region... " );
+	region_init_global( (void *)(KERNEL_BASE + 0x400000) );
+	debug_puts( "done\n" );
+}
+
 void arch_init( multiboot_header_t *header ){
 	static bootinfo_t bootinfo;
+	phys_memmap_t *kernel_mem = NULL;
+	phys_memmap_t *memmaps = NULL;
 
 	debug_puts( ">> Booting C4 kernel\n" );
 	debug_puts( "Storing boot info... " );
 	bootinfo_init( &bootinfo, header );
 	debug_puts( "done\n" );
-	memmaps_init( header );
+	memmaps = memmaps_init( header, &kernel_mem );
+	dump_cooked_memmaps( memmaps );
 
 	debug_puts( "Initializing GDT... " );
 	init_segment_descs( );
@@ -222,13 +313,7 @@ void arch_init( multiboot_header_t *header ){
 	init_interrupts( );
 	debug_puts( "done\n" );
 
-	debug_puts( "Initializing more paging structures... ");
-	init_paging( );
-	debug_puts( "done\n" );
-
-	debug_puts( "Initializing kernel region... " );
-	region_init_global( (void *)(KERNEL_BASE + 0x400000) );
-	debug_puts( "done\n" );
+	init_memory( kernel_mem );
 
 	debug_puts( "Initializing capability space structures... " );
 	cap_space_init( );

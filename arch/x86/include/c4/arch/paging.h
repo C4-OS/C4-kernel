@@ -2,6 +2,7 @@
 #define _C4_ARCH_PAGING_H 1
 #include <stdint.h>
 #include <stdbool.h>
+#include <c4/mm/region.h>
 
 #define PAGE_SIZE   0x1000
 #define KERNEL_BASE 0xfd000000
@@ -55,6 +56,6 @@ static inline bool is_user_address( void *addr ){
 	return !is_kernel_address( addr );
 }
 
-void init_paging( void );
+void init_paging( region_t *phys_map );
 
 #endif

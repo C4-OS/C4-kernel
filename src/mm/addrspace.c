@@ -96,7 +96,6 @@ int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent ){
 
 	phys_frame_map( ent->frame );
 	addr_map_insert( space->map, ent );
-	page_reserve_phys_range( p_start, p_start + phys->size * PAGE_SIZE );
 
 	for ( uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE )
 	{
