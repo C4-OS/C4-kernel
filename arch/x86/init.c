@@ -170,7 +170,7 @@ static phys_memmap_t *memmaps_init( multiboot_header_t *mboot,
 	return ret;
 }
 
-void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
+msg_queue_t *sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	addr_space_t *new_space = addr_space_clone( addr_space_kernel( ));
 
 	addr_space_set( new_space );
@@ -216,9 +216,19 @@ void sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 		thread_create( func, new_space, new_stack, THREAD_FLAG_USER );
 	new_thread->cap_space = cap_space_create();
 
-	set_page_dir( page_get_kernel_dir( ));
+	// TODO: Make a function to do all of this
+	msg_queue_t *msgq = message_queue_create();
+	cap_entry_t entry = {
+		.type = CAP_TYPE_IPC_SYNC_ENDPOINT,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		.object = msgq,
+	};
+	cap_space_replace( new_thread->cap_space, 1, &entry );
 
+	set_page_dir( page_get_kernel_dir( ));
 	sched_add_thread( new_thread );
+
+	return msgq;
 }
 
 multiboot_module_t *sigma0_find_module( multiboot_header_t *header ){
@@ -264,6 +274,50 @@ void test_thread_client( void ){
 		}
 		*/
 	}
+}
+
+
+// XXX: thread_create_kthread doesn't support arguments, at least not at the
+//      moment, so sigma0_send_memmaps() will initialize these global variables
+//      for the worker thread to use
+phys_memmap_t *sigma0_maps = NULL;
+msg_queue_t   *sigma0_msgq = NULL;
+
+void send_memmaps_thread( void ){
+	for ( phys_memmap_t *m = sigma0_maps; m; m = m->next ){
+		/*
+		message_t msg = {
+			.type = 123,
+			.data = { m->addr, m->length },
+		};
+		*/
+		phys_frame_t *frame = phys_frame_create( m->addr, m->length / PAGE_SIZE, 0 );
+
+		// TODO: reference counting
+		cap_entry_t entry = {
+			.type = CAP_TYPE_PHYS_MEMORY,
+			.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+			.object = frame,
+		};
+
+		//message_send( sigma0_msgq, &msg );
+		message_send_capability( sigma0_msgq, &entry );
+	}
+
+	message_t msg = {
+		.type = 1234,
+		.data = {0},
+	};
+
+	message_send( sigma0_msgq, &msg );
+	sched_thread_exit();
+}
+
+void sigma0_send_memmaps( phys_memmap_t *maps, msg_queue_t *queue ){
+	sigma0_maps = maps;
+	sigma0_msgq = queue;
+
+	sched_add_thread( thread_create_kthread( send_memmaps_thread ));
 }
 
 #include <c4/mm/addrspace.h>
@@ -339,7 +393,8 @@ void arch_init( multiboot_header_t *header ){
 		return;
 	}
 
-	sigma0_load( sigma0, &bootinfo );
+	msg_queue_t *msgq = sigma0_load( sigma0, &bootinfo );
+	sigma0_send_memmaps( memmaps, msgq );
 
 	sched_add_thread( thread_create_kthread( test_thread_client ));
 	register_interrupt( INTERRUPT_TIMER, timer_handler );

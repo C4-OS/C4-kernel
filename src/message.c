@@ -153,6 +153,19 @@ void message_send( msg_queue_t *queue, message_t *msg ){
 	}
 }
 
+void message_send_capability( msg_queue_t *queue, cap_entry_t *cap ){
+	message_t msg = {
+		.type = MESSAGE_TYPE_GRANT_OBJECT,
+		.data = {
+			cap->type,
+			cap->permissions,
+			(uint32_t)cap->object,
+		},
+	};
+
+	message_send( queue, &msg );
+}
+
 static inline void message_queue_async_insert( msg_queue_async_t *queue,
                                                message_node_t  *node )
 {
@@ -456,6 +469,10 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 				current->id, msg->data[0], msg->data[1], msg->data[2] );
 			break;
 
+		case MESSAGE_TYPE_GRANT_OBJECT:
+			should_send = true;
+			break;
+
 			/*
 		case MESSAGE_TYPE_DUMP_MAPS:
 			debug_printf(
@@ -527,6 +544,29 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 
 static inline bool kernel_msg_handle_recieve( message_t *msg ){
 	switch ( msg->type ){
+		case MESSAGE_TYPE_GRANT_OBJECT:
+			{
+				thread_t *cur = sched_current_thread();
+				msg->data[5] = 0;
+
+				if ( !cur->cap_space ){
+					return false;
+				}
+
+				cap_entry_t entry = {
+					.type = msg->data[0],
+					.permissions = msg->data[1],
+					// TODO: this will need to be a 64 bit pointer on amd64
+					//       maybe have this take two fields in the message
+					.object = (void *)msg->data[2],
+				};
+
+				uint32_t obj = cap_space_insert( cur->cap_space, &entry );
+				msg->data[5] = obj;
+				msg->data[2] = NULL;
+			}
+
+		/*
 		case MESSAGE_TYPE_UNMAP:
 			{
 				thread_t *cur = sched_current_thread( );
@@ -542,6 +582,7 @@ static inline bool kernel_msg_handle_recieve( message_t *msg ){
 				addr_space_insert_map( cur->addr_space, ent );
 			}
 			break;
+		*/
 
 		default:
 			break;

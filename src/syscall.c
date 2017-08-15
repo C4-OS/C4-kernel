@@ -115,8 +115,21 @@ static int do_cap_check( thread_t *thread,
 
 	cap_entry_t *cap = cap_space_lookup( thread->cap_space, object );
 
+	/*
 	if ( !cap || cap->type != type ){
 		debug_printf( "- invalid cap/cap type! %u\n", thread->id );
+		return -C4_ERROR_INVALID_OBJECT;
+	}
+	*/
+
+	if ( !cap ){
+		debug_printf( "- invalid cap space! %u\n", thread->id );
+		return -C4_ERROR_INVALID_OBJECT;
+	}
+
+	if ( cap->type != type && type != CAP_TYPE_NULL ){
+		debug_printf( "- invalid cap type! %u, have %u, expected %u\n",
+		              thread->id, cap->type, type );
 		return -C4_ERROR_INVALID_OBJECT;
 	}
 
@@ -552,8 +565,35 @@ static int syscall_cspace_cap_share( SYSCALL_ARGS ){
 	return -C4_ERROR_NOT_IMPLEMENTED;
 }
 
-static int syscall_cspace_cap_grant( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_cspace_cap_grant( arg_t object,
+                                     arg_t queue,
+                                     arg_t permissions,
+                                     arg_t d )
+{
+	thread_t *cur = sched_current_thread();
+	cap_entry_t *cap = NULL;
+	int check = do_cap_check( cur, &cap, queue,
+	                          CAP_TYPE_IPC_SYNC_ENDPOINT, CAP_MODIFY );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+	msg_queue_t *endpoint = cap->object;
+
+	check = do_cap_check( cur, &cap, object, CAP_TYPE_NULL,
+	                      permissions | CAP_SHARE );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	cap_entry_t temp = *cap;
+	temp.permissions = permissions;
+	// TODO: error out somehow if the capability could not actually be sent
+	//       due to a full capability space on the reciever's end
+	message_send_capability( endpoint, &temp );
+
+	return -C4_ERROR_NONE;
 }
 
 #ifdef __i386__

@@ -8,6 +8,9 @@ enum {
 	//MESSAGE_TYPE_DEBUG_PUTCHAR,
 	MESSAGE_TYPE_DEBUG_PRINT,
 
+	// capability messages
+	MESSAGE_TYPE_GRANT_OBJECT,
+
 	// memory control messages
 	MESSAGE_TYPE_MAP,
 	MESSAGE_TYPE_MAP_TO,
@@ -55,6 +58,7 @@ typedef struct msg_queue msg_queue_t;
 typedef struct msg_queue_async msg_queue_async_t;
 
 #include <c4/thread.h>
+#include <c4/capability.h>
 
 // TODO: consider implementing generic linked list structure, or macro library
 //       or something
@@ -87,6 +91,7 @@ void message_queue_async_free( msg_queue_async_t *queue );
 void message_recieve( msg_queue_t *queue, message_t *msg );
 bool message_try_send( msg_queue_t *queue, message_t *msg );
 void message_send( msg_queue_t *queue, message_t *msg );
+void message_send_capability( msg_queue_t *queue, cap_entry_t *cap );
 
 bool message_send_async( msg_queue_async_t *queue, message_t *msg );
 bool message_recieve_async( msg_queue_async_t *queue, message_t *msg, unsigned flags );
