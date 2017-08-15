@@ -529,7 +529,24 @@ static int syscall_phys_frame_join( SYSCALL_ARGS ){
 }
 
 static int syscall_cspace_create( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+	thread_t *cur = sched_current_thread();
+	int check = 0;
+
+	if (( check = do_newobj_cap_check( cur )) < 0 ){
+		return check;
+	}
+
+	uint32_t object = check;
+	cap_space_t *cspace = cap_space_create();
+	cap_entry_t entry = {
+		.type = CAP_TYPE_CAP_SPACE,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		.object = cspace,
+	};
+
+	cap_space_replace( cur->cap_space, object, &entry );
+
+	return object;
 }
 
 static int syscall_cspace_cap_move( SYSCALL_ARGS ){
