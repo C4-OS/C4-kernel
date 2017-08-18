@@ -20,6 +20,9 @@ static int syscall_thread_set_capspace( SYSCALL_ARGS );
 static int syscall_thread_set_stack( SYSCALL_ARGS );
 static int syscall_thread_set_ip( SYSCALL_ARGS );
 static int syscall_thread_set_priority( SYSCALL_ARGS );
+static int syscall_thread_set_pager( SYSCALL_ARGS );
+static int syscall_thread_continue( SYSCALL_ARGS );
+static int syscall_thread_stop( SYSCALL_ARGS );
 
 static int syscall_sync_create( SYSCALL_ARGS );
 static int syscall_sync_send( SYSCALL_ARGS );
@@ -57,6 +60,9 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_thread_set_stack,
 	syscall_thread_set_ip,
 	syscall_thread_set_priority,
+	syscall_thread_set_pager,
+	syscall_thread_continue,
+	syscall_thread_stop,
 
 	// syncronous ipc syscalls
 	syscall_sync_create,
@@ -274,6 +280,71 @@ static int syscall_thread_set_addrspace( arg_t thread,
 	thread_set_addr_space( target, new_aspace );
 	// TODO: check to see if the calling thread is the target thread,
 	//       and switch to the new address space before returning
+
+	return C4_ERROR_NONE;
+}
+
+static int syscall_thread_set_pager( arg_t thread, arg_t queue,
+                                     arg_t c, arg_t d )
+{
+	thread_t *cur = sched_current_thread();
+	cap_entry_t *cap = NULL;
+	thread_t *target = NULL;
+	msg_queue_t *endpoint = NULL;
+
+	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	target = cap->object;
+
+	check = do_cap_check( cur, &cap, queue, CAP_TYPE_IPC_SYNC_ENDPOINT,
+	                      CAP_ACCESS | CAP_MODIFY );
+
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	endpoint = cap->object;
+	// TODO: locking
+	target->pager = endpoint;
+
+	return C4_ERROR_NONE;
+}
+
+static int syscall_thread_continue( arg_t thread,
+                                    arg_t b, arg_t c, arg_t d )
+{
+	thread_t *cur = sched_current_thread();
+	cap_entry_t *cap = NULL;
+	thread_t *target = NULL;
+
+	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	target = cap->object;
+	sched_thread_continue( target );
+
+	return C4_ERROR_NONE;
+}
+
+static int syscall_thread_stop( arg_t thread,
+                                arg_t b, arg_t c, arg_t d )
+{
+	thread_t *cur = sched_current_thread();
+	cap_entry_t *cap = NULL;
+	thread_t *target = NULL;
+
+	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	target = cap->object;
+	sched_thread_stop( target );
 
 	return C4_ERROR_NONE;
 }

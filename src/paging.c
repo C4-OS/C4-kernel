@@ -22,6 +22,13 @@ void page_fault_message( uintptr_t address, uintptr_t ip, unsigned perms ){
 		cur->pager, address );
 
 	SET_FLAG( cur, THREAD_FLAG_FAULTED );
-	message_send( cur->pager, &faultmsg );
+	sched_thread_stop( cur );
+
+	if ( cur->pager ){
+		message_send( cur->pager, &faultmsg );
+	} else {
+		debug_printf( "error: faulted thread %u has no pager!\n", cur->id );
+	}
+
 	sched_thread_yield( );
 }

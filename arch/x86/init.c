@@ -193,9 +193,9 @@ msg_queue_t *sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	void *new_stack = (void *)(data_start + 0xff8);
 
 	// TODO: cut these from a block of memory found in memmaps_init()
-	phys_frame_t *info = phys_frame_create( 0x800000, 1, 0 );
-	phys_frame_t *code = phys_frame_create( 0x810000, 64, 0 );
-	phys_frame_t *data = phys_frame_create( 0x850000, 64, 0 );
+	phys_frame_t *info = phys_frame_create( 0x300000, 1, 0 );
+	phys_frame_t *code = phys_frame_create( 0x310000, 64, 0 );
+	phys_frame_t *data = phys_frame_create( 0x350000, 64, 0 );
 
 	addr_space_make_ent( &ent, (uintptr_t)BOOTINFO_ADDR, PAGE_READ, info );
 	addr_space_insert_map( new_space, &ent );
