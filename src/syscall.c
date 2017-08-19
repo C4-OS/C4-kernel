@@ -277,7 +277,7 @@ static int syscall_thread_set_addrspace( arg_t thread,
 	}
 	new_aspace = cap->object;
 
-	thread_set_addr_space( target, new_aspace );
+	thread_set_addrspace( target, new_aspace );
 	// TODO: check to see if the calling thread is the target thread,
 	//       and switch to the new address space before returning
 
@@ -349,10 +349,34 @@ static int syscall_thread_stop( arg_t thread,
 	return C4_ERROR_NONE;
 }
 
-static int syscall_thread_set_capspace( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
-}
+static int syscall_thread_set_capspace( arg_t thread,
+                                        arg_t aspace,
+                                        arg_t c, arg_t d )
+{
+	thread_t *cur = sched_current_thread();
+	cap_entry_t *cap = NULL;
 
+	thread_t *target = NULL;
+	cap_space_t *new_cspace = NULL;
+
+	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+	target = cap->object;
+
+	check = do_cap_check( cur, &cap, aspace, CAP_TYPE_CAP_SPACE, CAP_ACCESS );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+	new_cspace = cap->object;
+
+	thread_set_capspace( target, new_cspace );
+	// TODO: check to see if the calling thread is the target thread,
+	//       and switch to the new address space before returning
+
+	return C4_ERROR_NONE;
+}
 static int syscall_thread_set_stack( SYSCALL_ARGS ){
 	return -C4_ERROR_NOT_IMPLEMENTED;
 }

@@ -124,7 +124,12 @@ thread_t *thread_get_id( unsigned id ){
 	return NULL;
 }
 
-void thread_set_addr_space( thread_t *thread, addr_space_t *aspace ){
+void thread_set_addrspace( thread_t *thread, addr_space_t *aspace ){
 	// TODO: locking/atomic set
 	thread->addr_space = aspace;
+}
+
+void thread_set_capspace( thread_t *thread, cap_space_t *cspace ){
+	// TODO: locking/atomic set
+	thread->cap_space = cspace;
 }
