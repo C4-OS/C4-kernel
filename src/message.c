@@ -49,7 +49,6 @@ static inline bool message_thread_can_recieve( thread_t *target ){
 //void message_recieve( msg_queue_t *queue, message_t *msg, unsigned from ){
 void message_recieve( msg_queue_t *queue, message_t *msg ){
 	thread_t *cur = sched_current_thread( );
-	//cur->recieve_id = from;
 
 retry:
 	if ( FLAG(cur, THREAD_FLAG_PENDING_MSG) == 0 ){
@@ -90,7 +89,7 @@ retry:
 bool message_try_send( msg_queue_t *queue, message_t *msg ){
 	//thread_t *thread = thread_get_id( id );
 	thread_t *cur    = sched_current_thread( );
-	thread_t *thread = thread_list_pop( &queue->recievers );
+	thread_t *thread = thread_list_peek( &queue->recievers );
 
 	/*
 	if ( !thread ){
@@ -117,9 +116,12 @@ bool message_try_send( msg_queue_t *queue, message_t *msg ){
 	msg->sender = cur->id;
 
 	if ( message_thread_can_recieve( thread )){
-		thread->message = *msg;
 		SET_FLAG( thread, THREAD_FLAG_PENDING_MSG );
+
+		thread_list_remove( &thread->sched );
 		thread->state = SCHED_STATE_RUNNING;
+		thread->message = *msg;
+		sched_add_thread( thread );
 
 		return true;
 	}
