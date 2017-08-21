@@ -10,6 +10,23 @@
 
 #define SYSCALL_ARGS arg_t a, arg_t b, arg_t c, arg_t d
 
+#define CAP_CHECK_INIT() \
+	cap_entry_t *cap_ent = NULL; \
+	int cap_check = 0; \
+	void *cap_obj = NULL;
+
+#define CAP_CHECK(PTR, X, TYPE, PERMS) \
+	{ \
+		thread_t *cur = sched_current_thread(); \
+		cap_obj = NULL; \
+		cap_check = do_cap_check( cur, &cap_ent, (X), (TYPE), (PERMS) ); \
+		if ( cap_check != C4_ERROR_NONE ){ \
+			return cap_check; \
+		} \
+		cap_obj = cap_ent->object; \
+		(PTR) = cap_ent->object; \
+	}
+
 typedef uintptr_t arg_t;
 typedef int (*syscall_func_t)( SYSCALL_ARGS );
 
@@ -41,6 +58,7 @@ static int syscall_phys_frame_join( SYSCALL_ARGS );
 
 static int syscall_cspace_create( SYSCALL_ARGS );
 static int syscall_cspace_cap_move( SYSCALL_ARGS );
+static int syscall_cspace_cap_copy( SYSCALL_ARGS );
 static int syscall_cspace_cap_remove( SYSCALL_ARGS );
 static int syscall_cspace_cap_restrict( SYSCALL_ARGS );
 static int syscall_cspace_cap_share( SYSCALL_ARGS );
@@ -86,6 +104,7 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	// capability space management syscalls
 	syscall_cspace_create,
 	syscall_cspace_cap_move,
+	syscall_cspace_cap_copy,
 	syscall_cspace_cap_remove,
 	syscall_cspace_cap_restrict,
 	syscall_cspace_cap_share,
@@ -129,23 +148,27 @@ static int do_cap_check( thread_t *thread,
 	*/
 
 	if ( !cap ){
-		debug_printf( "- invalid cap space! %u\n", thread->id );
+		debug_printf( "=== %u: invalid object! %u\n", thread->id, object );
 		return -C4_ERROR_INVALID_OBJECT;
 	}
 
 	if ( cap->type != type && type != CAP_TYPE_NULL ){
-		debug_printf( "- invalid cap type! %u, have %u, expected %u\n",
+		debug_printf( "=== %u: invalid cap type! have %u, expected %u\n",
 		              thread->id, cap->type, type );
 		return -C4_ERROR_INVALID_OBJECT;
 	}
 
 	if ( (cap->permissions & permissions) != permissions ){
-		debug_printf( "- invalid permissions! %u\n", thread->id );
+		debug_printf( "=== %u: invalid permissions!\n", thread->id );
 		return -C4_ERROR_PERMISSION_DENIED;
 	}
 
     *entry = cap;
     return C4_ERROR_NONE;
+}
+
+static int cap_can_modify( cap_entry_t **ent, uint32_t object, uint32_t type ){
+	return do_cap_check( sched_current_thread(), ent, object, type, CAP_MODIFY );
 }
 
 // check whether a new object can be added in the current capability space,
@@ -550,8 +573,9 @@ static int syscall_addrspace_map( arg_t addrspace,
 	addr_space_t *space = NULL;
 	phys_frame_t *frame = NULL;
 	cap_entry_t *cap = NULL;
+	thread_t *cur = sched_current_thread();
 
-	int check = do_cap_check( sched_current_thread(), &cap, addrspace,
+	int check = do_cap_check( cur, &cap, addrspace,
 	                          CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
 	if ( check != C4_ERROR_NONE ){
 		return check;
@@ -559,25 +583,42 @@ static int syscall_addrspace_map( arg_t addrspace,
 
 	space = cap->object;
 
-	check = do_cap_check( sched_current_thread(), &cap, phys_frame,
+	check = do_cap_check( cur, &cap, phys_frame,
 	                      CAP_TYPE_PHYS_MEMORY, CAP_ACCESS );
 	if ( check != C4_ERROR_NONE ){
 		return check;
 	}
 
 	frame = cap->object;
-
 	addr_entry_t ent;
+
+	addr_space_set( space );
 	addr_space_make_ent( &ent, address, permissions, frame );
 	// TODO: implement addr_space_map() which will check for overlapping
 	//       mappings
 	addr_space_insert_map( space, &ent );
+	addr_space_set( cur->addr_space );
 
 	return C4_ERROR_NONE;
 }
 
-static int syscall_addrspace_unmap( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_addrspace_unmap( arg_t addrspace,
+                                    arg_t address,
+                                    arg_t c, arg_t d )
+{
+	addr_space_t *space = NULL;
+	phys_frame_t *frame = NULL;
+	cap_entry_t *cap = NULL;
+	thread_t *cur = sched_current_thread();
+
+	int check = do_cap_check( cur, &cap, addrspace,
+	                          CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
+	if ( check != C4_ERROR_NONE ){
+		return check;
+	}
+
+	space = cap->object;
+	return addr_space_unmap( space, address );
 }
 
 static int syscall_phys_frame_split( arg_t phys_frame,
@@ -644,8 +685,59 @@ static int syscall_cspace_create( SYSCALL_ARGS ){
 	return object;
 }
 
-static int syscall_cspace_cap_move( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_cspace_cap_move( arg_t src,  arg_t srcobj,
+                                    arg_t dest, arg_t destobj )
+{
+	cap_space_t *srcspace;
+	cap_space_t *destspace;
+	void *srcptr;
+	void *destptr;
+	cap_entry_t *srcent;
+	cap_entry_t *destent;
+
+	CAP_CHECK_INIT();
+	CAP_CHECK( srcspace, src, CAP_TYPE_CAP_SPACE, CAP_MODIFY | CAP_SHARE );
+	CAP_CHECK( destspace, dest, CAP_TYPE_CAP_SPACE, CAP_MODIFY );
+	CAP_CHECK( destptr, destobj, CAP_TYPE_NULL, 0 );
+	CAP_CHECK( srcptr, srcobj, CAP_TYPE_NULL, CAP_SHARE );
+	srcent = cap_ent;
+
+	// possible optimization here: cap_space_replace() will do another lookup
+	// of the object in the destination cap space, despite already having
+	// a pointer to the entry that will be overwritten here. For now I'm
+	// leaving it like this to make implementing references and garbage
+	// collection easier in the future.
+	cap_space_replace( destspace, destobj, srcent );
+	cap_space_remove( srcspace, srcobj );
+
+	return C4_ERROR_NONE;
+}
+
+static int syscall_cspace_cap_copy( arg_t src,  arg_t srcobj,
+                                    arg_t dest, arg_t destobj )
+{
+	cap_space_t *srcspace;
+	cap_space_t *destspace;
+	void *srcptr;
+	void *destptr;
+	cap_entry_t *srcent;
+	cap_entry_t *destent;
+
+	CAP_CHECK_INIT();
+	CAP_CHECK( srcspace, src, CAP_TYPE_CAP_SPACE, CAP_MODIFY | CAP_SHARE );
+	CAP_CHECK( destspace, dest, CAP_TYPE_CAP_SPACE, CAP_MODIFY );
+	CAP_CHECK( destptr, destobj, CAP_TYPE_NULL, 0 );
+	CAP_CHECK( srcptr, srcobj, CAP_TYPE_NULL, CAP_SHARE );
+	srcent = cap_ent;
+
+	// possible optimization here: cap_space_replace() will do another lookup
+	// of the object in the destination cap space, despite already having
+	// a pointer to the entry that will be overwritten here. For now I'm
+	// leaving it like this to make implementing references and garbage
+	// collection easier in the future.
+	cap_space_replace( destspace, destobj, srcent );
+
+	return C4_ERROR_NONE;
 }
 
 static int syscall_cspace_cap_remove( SYSCALL_ARGS ){

@@ -5,6 +5,7 @@
 #include <c4/debug.h>
 #include <c4/common.h>
 #include <c4/paging.h>
+#include <c4/error.h>
 
 static slab_t addr_space_slab;
 static slab_t phys_frame_slab;
@@ -86,7 +87,14 @@ int addr_space_map( addr_space_t *a,
                     addr_entry_t *ent );
 
 int addr_space_unmap( addr_space_t *space, unsigned long address ){
-	return 0;
+	addr_entry_t *ent = addr_map_lookup( space->map, address );
+
+	if ( !ent ){
+		return -C4_ERROR_INVALID_ARGUMENT;
+	}
+
+	addr_space_remove_map( space, ent );
+	return -C4_ERROR_NONE;
 }
 
 int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent ){
@@ -155,6 +163,7 @@ void phys_frame_map( phys_frame_t *phys ){
 	// TODO: locking
 	phys->mappings++;
 	phys->references++;
+	debug_printf( "=== mappings: %u\n", phys->mappings );
 }
 
 void phys_frame_unmap( phys_frame_t *phys ){

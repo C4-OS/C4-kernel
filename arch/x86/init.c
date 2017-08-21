@@ -225,6 +225,14 @@ msg_queue_t *sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	};
 	cap_space_replace( new_thread->cap_space, 1, &entry );
 
+	entry = (cap_entry_t){
+		.type = CAP_TYPE_ADDR_SPACE,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		// TODO: take a reference
+		.object = new_space,
+	};
+	cap_space_replace( new_thread->cap_space, 2, &entry );
+
 	set_page_dir( page_get_kernel_dir( ));
 	sched_add_thread( new_thread );
 
@@ -396,7 +404,7 @@ void arch_init( multiboot_header_t *header ){
 	msg_queue_t *msgq = sigma0_load( sigma0, &bootinfo );
 	sigma0_send_memmaps( memmaps, msgq );
 
-	sched_add_thread( thread_create_kthread( test_thread_client ));
+	//sched_add_thread( thread_create_kthread( test_thread_client ));
 	register_interrupt( INTERRUPT_TIMER, timer_handler );
 
 	asm volatile ( "sti" );
