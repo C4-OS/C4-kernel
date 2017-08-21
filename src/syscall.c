@@ -140,13 +140,6 @@ static int do_cap_check( thread_t *thread,
 
 	cap_entry_t *cap = cap_space_lookup( thread->cap_space, object );
 
-	/*
-	if ( !cap || cap->type != type ){
-		debug_printf( "- invalid cap/cap type! %u\n", thread->id );
-		return -C4_ERROR_INVALID_OBJECT;
-	}
-	*/
-
 	if ( !cap ){
 		debug_printf( "=== %u: invalid object! %u\n", thread->id, object );
 		return -C4_ERROR_INVALID_OBJECT;
@@ -165,10 +158,6 @@ static int do_cap_check( thread_t *thread,
 
     *entry = cap;
     return C4_ERROR_NONE;
-}
-
-static int cap_can_modify( cap_entry_t **ent, uint32_t object, uint32_t type ){
-	return do_cap_check( sched_current_thread(), ent, object, type, CAP_MODIFY );
 }
 
 // check whether a new object can be added in the current capability space,
@@ -238,22 +227,9 @@ static int syscall_thread_create( arg_t user_entry,
 		return check;
 	}
 
+	// TODO: take a reference here
 	// thread inherents the parent's address space by default
 	addr_space_t *space = cur->addr_space;
-
-	// TODO: remove this, this will be done on the user side with
-	//       syscall_thread_set_addrspace
-	/*
-	if ( flags & THREAD_CREATE_FLAG_CLONE ){
-		space = addr_space_clone( space );
-
-	} else if ( flags & THREAD_CREATE_FLAG_NEWMAP ){
-		space = addr_space_clone( addr_space_kernel( ));
-		addr_space_set( space );
-		addr_space_map_self( space, ADDR_MAP_ADDR );
-		addr_space_set( cur->addr_space );
-	}
-	*/
 
 	thread = thread_create( entry, space, stack, THREAD_FLAG_USER );
 	sched_thread_stop( thread );
@@ -282,23 +258,12 @@ static int syscall_thread_set_addrspace( arg_t thread,
                                          arg_t aspace,
                                          arg_t c, arg_t d )
 {
-	thread_t *cur = sched_current_thread();
-	cap_entry_t *cap = NULL;
-
 	thread_t *target = NULL;
 	addr_space_t *new_aspace = NULL;
 
-	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-	target = cap->object;
-
-	check = do_cap_check( cur, &cap, aspace, CAP_TYPE_ADDR_SPACE, CAP_ACCESS );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-	new_aspace = cap->object;
+	CAP_CHECK_INIT();
+	CAP_CHECK( target, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	CAP_CHECK( new_aspace, aspace, CAP_TYPE_ADDR_SPACE, CAP_ACCESS );
 
 	thread_set_addrspace( target, new_aspace );
 	// TODO: check to see if the calling thread is the target thread,
@@ -310,26 +275,14 @@ static int syscall_thread_set_addrspace( arg_t thread,
 static int syscall_thread_set_pager( arg_t thread, arg_t queue,
                                      arg_t c, arg_t d )
 {
-	thread_t *cur = sched_current_thread();
-	cap_entry_t *cap = NULL;
 	thread_t *target = NULL;
 	msg_queue_t *endpoint = NULL;
 
-	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( target, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	CAP_CHECK( endpoint, queue, CAP_TYPE_IPC_SYNC_ENDPOINT,
+	           CAP_ACCESS | CAP_MODIFY );
 
-	target = cap->object;
-
-	check = do_cap_check( cur, &cap, queue, CAP_TYPE_IPC_SYNC_ENDPOINT,
-	                      CAP_ACCESS | CAP_MODIFY );
-
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-
-	endpoint = cap->object;
 	// TODO: locking
 	target->pager = endpoint;
 
@@ -339,16 +292,10 @@ static int syscall_thread_set_pager( arg_t thread, arg_t queue,
 static int syscall_thread_continue( arg_t thread,
                                     arg_t b, arg_t c, arg_t d )
 {
-	thread_t *cur = sched_current_thread();
-	cap_entry_t *cap = NULL;
 	thread_t *target = NULL;
 
-	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-
-	target = cap->object;
+	CAP_CHECK_INIT();
+	CAP_CHECK( target, thread, CAP_TYPE_THREAD, CAP_MODIFY );
 	sched_thread_continue( target );
 
 	return C4_ERROR_NONE;
@@ -357,16 +304,10 @@ static int syscall_thread_continue( arg_t thread,
 static int syscall_thread_stop( arg_t thread,
                                 arg_t b, arg_t c, arg_t d )
 {
-	thread_t *cur = sched_current_thread();
-	cap_entry_t *cap = NULL;
 	thread_t *target = NULL;
 
-	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-
-	target = cap->object;
+	CAP_CHECK_INIT();
+	CAP_CHECK( target, thread, CAP_TYPE_THREAD, CAP_MODIFY );
 	sched_thread_stop( target );
 
 	return C4_ERROR_NONE;
@@ -376,30 +317,18 @@ static int syscall_thread_set_capspace( arg_t thread,
                                         arg_t aspace,
                                         arg_t c, arg_t d )
 {
-	thread_t *cur = sched_current_thread();
-	cap_entry_t *cap = NULL;
-
 	thread_t *target = NULL;
 	cap_space_t *new_cspace = NULL;
 
-	int check = do_cap_check( cur, &cap, thread, CAP_TYPE_THREAD, CAP_MODIFY );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-	target = cap->object;
-
-	check = do_cap_check( cur, &cap, aspace, CAP_TYPE_CAP_SPACE, CAP_ACCESS );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-	new_cspace = cap->object;
+	CAP_CHECK_INIT();
+	CAP_CHECK( target, thread, CAP_TYPE_THREAD, CAP_MODIFY );
+	CAP_CHECK( new_cspace, aspace, CAP_TYPE_CAP_SPACE, CAP_ACCESS );
 
 	thread_set_capspace( target, new_cspace );
-	// TODO: check to see if the calling thread is the target thread,
-	//       and switch to the new address space before returning
 
 	return C4_ERROR_NONE;
 }
+
 static int syscall_thread_set_stack( SYSCALL_ARGS ){
 	return -C4_ERROR_NOT_IMPLEMENTED;
 }
@@ -435,45 +364,34 @@ static int syscall_sync_create( SYSCALL_ARGS ){
 
 static int syscall_sync_send( arg_t buffer, arg_t target, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
-	cap_entry_t *cap = NULL;
+	msg_queue_t *queue;
 
-	int check = do_cap_check( sched_current_thread(), &cap, target,
-	                          CAP_TYPE_IPC_SYNC_ENDPOINT, CAP_MODIFY );
-
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( queue, target, CAP_TYPE_IPC_SYNC_ENDPOINT, CAP_MODIFY );
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
-		//return -1;
 		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
-	//message_send( msg, target );
-	message_send( cap->object, msg );
+	message_send( queue, msg );
 
 	return 0;
 }
 
 static int syscall_sync_recieve( arg_t buffer, arg_t from, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
-	cap_entry_t *cap = NULL;
+	msg_queue_t *queue;
 
-	int check = do_cap_check( sched_current_thread(), &cap, from,
-	                          CAP_TYPE_IPC_SYNC_ENDPOINT, CAP_ACCESS );
-
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( queue, from, CAP_TYPE_IPC_SYNC_ENDPOINT, CAP_ACCESS );
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
 		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
-	//message_recieve( msg, from );
-	message_recieve( cap->object, msg );
+	message_recieve( queue, msg );
 
 	return 0;
 }
@@ -501,22 +419,17 @@ static int syscall_async_create( SYSCALL_ARGS ){
 
 static int syscall_async_send( arg_t buffer, arg_t to, arg_t c, arg_t d ){
 	message_t *msg = (message_t *)buffer;
-	cap_entry_t *cap = NULL;
+	msg_queue_async_t *queue;
 
-	int check = do_cap_check( sched_current_thread(), &cap, to,
-	                          CAP_TYPE_IPC_ASYNC_ENDPOINT, CAP_MODIFY );
-
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( queue, to, CAP_TYPE_IPC_ASYNC_ENDPOINT, CAP_MODIFY );
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
 		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
-	//return message_send_async( msg, to );
-	return message_send_async( cap->object, msg );
+	return message_send_async( queue, msg );
 }
 
 static int syscall_async_recieve( arg_t buffer,
@@ -525,14 +438,10 @@ static int syscall_async_recieve( arg_t buffer,
                                   arg_t d )
 {
 	message_t *msg = (message_t *)buffer;
-	cap_entry_t *cap = NULL;
+	msg_queue_async_t *queue;
 
-	int check = do_cap_check( sched_current_thread(), &cap, from,
-	                          CAP_TYPE_IPC_ASYNC_ENDPOINT, CAP_ACCESS );
-
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( queue, from, CAP_TYPE_IPC_ASYNC_ENDPOINT, CAP_ACCESS );
 
 	if ( !is_user_address( msg )){
 		debug_printf( "%s: (invalid buffer, returning)\n", __func__ );
@@ -540,8 +449,7 @@ static int syscall_async_recieve( arg_t buffer,
 		return false;
 	}
 
-	//return message_recieve_async( msg, flags );
-	return message_recieve_async( cap->object, msg, flags );
+	return message_recieve_async( queue, msg, flags );
 }
 
 static int syscall_addrspace_create( SYSCALL_ARGS ){
@@ -572,24 +480,12 @@ static int syscall_addrspace_map( arg_t addrspace,
 {
 	addr_space_t *space = NULL;
 	phys_frame_t *frame = NULL;
-	cap_entry_t *cap = NULL;
 	thread_t *cur = sched_current_thread();
 
-	int check = do_cap_check( cur, &cap, addrspace,
-	                          CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( space, addrspace, CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
+	CAP_CHECK( frame, phys_frame, CAP_TYPE_PHYS_MEMORY, CAP_ACCESS );
 
-	space = cap->object;
-
-	check = do_cap_check( cur, &cap, phys_frame,
-	                      CAP_TYPE_PHYS_MEMORY, CAP_ACCESS );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
-
-	frame = cap->object;
 	addr_entry_t ent;
 
 	addr_space_set( space );
@@ -608,16 +504,10 @@ static int syscall_addrspace_unmap( arg_t addrspace,
 {
 	addr_space_t *space = NULL;
 	phys_frame_t *frame = NULL;
-	cap_entry_t *cap = NULL;
-	thread_t *cur = sched_current_thread();
 
-	int check = do_cap_check( cur, &cap, addrspace,
-	                          CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( space, addrspace, CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
 
-	space = cap->object;
 	return addr_space_unmap( space, address );
 }
 
@@ -626,18 +516,12 @@ static int syscall_phys_frame_split( arg_t phys_frame,
                                      arg_t c,
                                      arg_t d )
 {
-	int check = 0;
-	cap_entry_t *cap = NULL;
 	phys_frame_t *frame = NULL;
+	int check = 0;
 	thread_t *cur = sched_current_thread();
 
-	check = do_cap_check( cur, &cap, phys_frame,
-	                      CAP_TYPE_PHYS_MEMORY, CAP_MODIFY );
-	if ( check < 0 ){
-		return check;
-	}
-
-	frame = cap->object;
+	CAP_CHECK_INIT();
+	CAP_CHECK( frame, phys_frame, CAP_TYPE_PHYS_MEMORY, CAP_MODIFY );
 
 	if (( check = do_newobj_cap_check( cur )) < 0 ){
 		return check;
@@ -645,6 +529,7 @@ static int syscall_phys_frame_split( arg_t phys_frame,
 
 	uint32_t object = check;
 	phys_frame_t *newframe = phys_frame_split( frame, offset );
+
 	if ( !newframe ){
 		return -C4_ERROR_INVALID_ARGUMENT;
 	}
@@ -652,7 +537,7 @@ static int syscall_phys_frame_split( arg_t phys_frame,
 	// TODO: take a reference to newframe
 	cap_entry_t entry = (cap_entry_t){
 		.type        = CAP_TYPE_PHYS_MEMORY,
-		.permissions = cap->permissions,
+		.permissions = cap_ent->permissions,
 		.object      = newframe,
 	};
 
@@ -749,16 +634,12 @@ static int syscall_cspace_cap_restrict( arg_t capspace,
                                         arg_t permissions,
                                         arg_t d )
 {
-	thread_t *cur = sched_current_thread();
-	cap_entry_t *cap = NULL;
-	int check = do_cap_check( cur, &cap, capspace,
-	                          CAP_TYPE_CAP_SPACE, CAP_MODIFY );
+	cap_space_t *cspace;
 
-	if ( check != C4_ERROR_NONE ){
-		return check;
-	}
+	CAP_CHECK_INIT();
+	CAP_CHECK( cspace, capspace, CAP_TYPE_CAP_SPACE, CAP_MODIFY );
 
-	if ( !cap_space_restrict( cap->object, object, permissions )){
+	if ( !cap_space_restrict( cspace, object, permissions )){
 		return -C4_ERROR_PERMISSION_DENIED;
 	}
 
