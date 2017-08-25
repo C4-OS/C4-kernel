@@ -126,6 +126,18 @@ int syscall_dispatch( unsigned num, arg_t a, arg_t b, arg_t c, arg_t d ){
 
 // TODO: consider moving these functions to capability.c
 
+static const char *cap_type_strings[] = {
+	"[invalid]",
+	"syncronous IPC endpoint",
+	"asyncronous IPC endpoint",
+	"capability space",
+	"address space",
+	"thread",
+	"I/O port",
+	"physical memory frame",
+	"[reserved]",
+};
+
 // check whether the requested permissions are compatible with this object
 static int do_cap_check( thread_t *thread,
                          cap_entry_t **entry,
@@ -146,8 +158,10 @@ static int do_cap_check( thread_t *thread,
 	}
 
 	if ( cap->type != type && type != CAP_TYPE_NULL ){
-		debug_printf( "=== %u: invalid cap type! have %u, expected %u\n",
-		              thread->id, cap->type, type );
+		const char *a = cap_type_strings[cap->type];
+		const char *b = cap_type_strings[type];
+		debug_printf( "=== %u: invalid cap type! have %s, but expected %s\n",
+		              thread->id, a, b );
 		return -C4_ERROR_INVALID_OBJECT;
 	}
 
