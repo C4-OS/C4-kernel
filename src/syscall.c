@@ -11,9 +11,9 @@
 #define SYSCALL_ARGS arg_t a, arg_t b, arg_t c, arg_t d
 
 #define CAP_CHECK_INIT() \
-	cap_entry_t *cap_ent = NULL; \
-	int cap_check = 0; \
-	void *cap_obj = NULL;
+	__attribute__((unused)) cap_entry_t *cap_ent = NULL; \
+	__attribute__((unused)) int cap_check = 0; \
+	__attribute__((unused)) void *cap_obj = NULL;
 
 #define CAP_CHECK(PTR, X, TYPE, PERMS) \
 	{ \
@@ -64,6 +64,8 @@ static int syscall_cspace_cap_restrict( SYSCALL_ARGS );
 static int syscall_cspace_cap_share( SYSCALL_ARGS );
 static int syscall_cspace_cap_grant( SYSCALL_ARGS );
 
+static int syscall_interrupt_subscribe( SYSCALL_ARGS );
+static int syscall_interrupt_unsubscribe( SYSCALL_ARGS );
 // TODO: look into replacing this syscall with io bitmap
 static int syscall_ioport( SYSCALL_ARGS );
 static int syscall_info( SYSCALL_ARGS );
@@ -111,6 +113,8 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_cspace_cap_grant,
 
 	// other syscalls
+	syscall_interrupt_subscribe,
+	syscall_interrupt_unsubscribe,
 	syscall_ioport,
 	syscall_info,
 	syscall_debug_putchar,
@@ -693,6 +697,29 @@ static int syscall_cspace_cap_grant( arg_t object,
 	message_send_capability( endpoint, &temp );
 
 	return -C4_ERROR_NONE;
+}
+
+static int syscall_interrupt_subscribe( arg_t interrupt,
+                                        arg_t endpoint,
+                                        arg_t c,
+                                        arg_t d )
+{
+	msg_queue_async_t *queue = NULL;
+
+	CAP_CHECK_INIT();
+	CAP_CHECK( queue, endpoint, CAP_TYPE_IPC_ASYNC_ENDPOINT, CAP_MODIFY );
+
+	interrupt_listen( interrupt, queue );
+
+	return C4_ERROR_NONE;
+}
+
+static int syscall_interrupt_unsubscribe( arg_t endpoint,
+                                          arg_t b,
+                                          arg_t c,
+                                          arg_t d )
+{
+	return -C4_ERROR_NOT_IMPLEMENTED;
 }
 
 #ifdef __i386__

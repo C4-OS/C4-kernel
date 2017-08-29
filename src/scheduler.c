@@ -26,7 +26,11 @@ void init_scheduler( void ){
 static inline thread_t *next_thread( thread_t *thread ){
 	thread_t *foo = thread;
 
-	if ( foo && foo->sched.next ){
+	if ( !thread ){
+		return NULL;
+	}
+
+	if ( foo->sched.next ){
 		foo = foo->sched.next->thread;
 
 	} else {
@@ -46,8 +50,14 @@ void sched_switch_thread( void ){
 	  || current_thread == global_idle_thread
 	  || current_thread->sched.list != &sched_list )
 	{
-		next  = sched_list.first->thread;
-		start = next;
+		if ( sched_list.first ){
+			next  = sched_list.first->thread;
+			start = next;
+
+		} else {
+			start = NULL;
+			next  = NULL;
+		}
 
 	} else {
 		next  = current_thread;
@@ -57,7 +67,7 @@ void sched_switch_thread( void ){
 	next = next_thread( next );
 
 	// TODO: move threads to a seperate 'waiting' list
-	while ( next->state != SCHED_STATE_RUNNING ){
+	while ( next && next->state != SCHED_STATE_RUNNING ){
 		next = next_thread( next );
 
 		if ( next == start ){
@@ -65,7 +75,7 @@ void sched_switch_thread( void ){
 		}
 	}
 
-	if ( next->state != SCHED_STATE_RUNNING ){
+	if ( !next || next->state != SCHED_STATE_RUNNING ){
 		sched_jump_to_thread( global_idle_thread );
 
 	} else {
