@@ -131,8 +131,8 @@ int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent ){
 		unmap_page( v );
 	}
 
-	addr_map_remove( space->map, ent );
 	phys_frame_unmap( ent->frame );
+	addr_map_remove( space->map, ent );
 
 	return 0;
 }
