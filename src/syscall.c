@@ -643,8 +643,21 @@ static int syscall_cspace_cap_copy( arg_t src,  arg_t srcobj,
 	return C4_ERROR_NONE;
 }
 
-static int syscall_cspace_cap_remove( SYSCALL_ARGS ){
-	return -C4_ERROR_NOT_IMPLEMENTED;
+static int syscall_cspace_cap_remove( arg_t capspace, arg_t object,
+                                      arg_t c, arg_t d )
+{
+	cap_space_t *cspace;
+	void *aptr;
+
+	CAP_CHECK_INIT();
+	CAP_CHECK(cspace, capspace, CAP_TYPE_CAP_SPACE, CAP_MODIFY);
+	CAP_CHECK(aptr, object, CAP_TYPE_NULL, 0);
+
+	if (cap_space_remove(cspace, object) == false) {
+		return -C4_ERROR_PERMISSION_DENIED;
+	}
+
+	return C4_ERROR_NONE;
 }
 
 static int syscall_cspace_cap_restrict( arg_t capspace,
