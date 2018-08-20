@@ -53,6 +53,7 @@ static int syscall_addrspace_create( SYSCALL_ARGS );
 static int syscall_addrspace_map( SYSCALL_ARGS );
 static int syscall_addrspace_unmap( SYSCALL_ARGS );
 
+static int syscall_phys_frame_create( SYSCALL_ARGS );
 static int syscall_phys_frame_split( SYSCALL_ARGS );
 static int syscall_phys_frame_join( SYSCALL_ARGS );
 
@@ -100,6 +101,7 @@ static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	syscall_addrspace_unmap,
 
 	// physical memory frame syscalls
+	syscall_phys_frame_create,
 	syscall_phys_frame_split,
 	syscall_phys_frame_join,
 
@@ -528,6 +530,44 @@ static int syscall_addrspace_unmap( arg_t addrspace,
 
 	return addr_space_unmap( space, address );
 }
+
+// TODO: DANGER: this needs permission checking with a not-yet-implemented
+//       context capability to make sure random things can't map arbitrary
+//       physical memory
+static int syscall_phys_frame_create( arg_t phys_addr,
+                                      arg_t size,
+                                      arg_t context,
+                                      arg_t d )
+{
+	phys_frame_t *frame = NULL;
+	int check = 0;
+	thread_t *cur = sched_current_thread();
+
+	CAP_CHECK_INIT();
+
+	if ((check = do_newobj_cap_check(cur)) < 0) {
+		return check;
+	}
+
+	uint32_t object = check;
+	phys_frame_t *newframe = phys_frame_create(phys_addr, size,
+	                                           PHYS_FRAME_FLAG_NONFREEABLE);
+
+	if (!newframe) {
+		return -C4_ERROR_INVALID_ARGUMENT;
+	}
+
+	// TODO: take a reference to newframe
+	cap_entry_t entry = (cap_entry_t){
+		.type        = CAP_TYPE_PHYS_MEMORY,
+		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
+		.object      = newframe,
+	};
+
+	cap_space_replace(cur->cap_space, object, &entry);
+	return object;
+}
+
 
 static int syscall_phys_frame_split( arg_t phys_frame,
                                      arg_t offset,

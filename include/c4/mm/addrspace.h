@@ -6,6 +6,14 @@
 #include <stdint.h>
 #include <stddef.h>
 
+enum {
+	PHYS_FRAME_FLAG_NONE = 0,
+	// TODO: doxygen markup here
+	// signals that this frame can't be recollected, e.g. frames created by
+	// device drivers which access memory mapped I/O and what not
+	PHYS_FRAME_FLAG_NONFREEABLE = (1 << 0),
+};
+
 // structure representing a linear block of physical memory
 typedef struct phys_frame {
 	// TODO locking, GC structure, etc
