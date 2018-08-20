@@ -120,14 +120,10 @@ int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent ){
 	phys_frame_t *phys = ent->frame;
 	uintptr_t v_start = ent->addr - (ent->addr  % PAGE_SIZE);
 
-	//page_reserve_phys_range( p_start, p_start + ent->size * PAGE_SIZE );
-	debug_printf( "removing mapping 0x%x of size %u\n", v_start, phys->size );
-
 	for ( uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE )
 	{
 		void *v = (void *)(v_start + page);
 
-		//map_phys_page( ent->permissions, v, p );
 		unmap_page( v );
 	}
 
@@ -163,14 +159,18 @@ void phys_frame_map( phys_frame_t *phys ){
 	// TODO: locking
 	phys->mappings++;
 	phys->references++;
-	debug_printf( "=== mappings: %u\n", phys->mappings );
 }
 
 void phys_frame_unmap( phys_frame_t *phys ){
 	// TODO: locking
 	KASSERT( phys->mappings != 0 );
 	phys->mappings--;
+	// TODO: shouldn't this be phys->references--?
 	phys->references++;
+
+	if (phys->mappings == 0) {
+		debug_printf( "=== %u: no mappings, might be able to free this\n", __func__ );
+	}
 }
 
 phys_frame_t *phys_frame_split( phys_frame_t *phys, size_t offset ){
@@ -289,8 +289,6 @@ void addr_map_remove( addr_map_t *map, addr_entry_t *entry ){
 	unsigned index = ((uintptr_t)entry - (uintptr_t)map->map) / sizeof(*entry);
 
 	KASSERT( index <= ADDR_MAP_ENTRIES_PER_PAGE );
-	debug_printf( "removing index %u\n", index );
-
 	addr_map_shift_downwards( map, index );
 }
 
