@@ -5,6 +5,9 @@
 #include <c4/scheduler.h>
 #include <c4/mm/addrspace.h>
 #include <c4/capability.h>
+// for interrupt_listen()
+#include <c4/interrupts.h>
+
 #include <c4/error.h>
 #include <stddef.h>
 
@@ -523,12 +526,11 @@ static int syscall_addrspace_unmap( arg_t addrspace,
                                     arg_t c, arg_t d )
 {
 	addr_space_t *space = NULL;
-	phys_frame_t *frame = NULL;
 
 	CAP_CHECK_INIT();
 	CAP_CHECK( space, addrspace, CAP_TYPE_ADDR_SPACE, CAP_MODIFY );
 
-	return addr_space_unmap( space, address );
+	return addr_space_unmap(space, address);
 }
 
 // TODO: DANGER: this needs permission checking with a not-yet-implemented
@@ -539,7 +541,6 @@ static int syscall_phys_frame_create( arg_t phys_addr,
                                       arg_t context,
                                       arg_t d )
 {
-	phys_frame_t *frame = NULL;
 	int check = 0;
 	thread_t *cur = sched_current_thread();
 
@@ -631,18 +632,17 @@ static int syscall_cspace_create( SYSCALL_ARGS ){
 static int syscall_cspace_cap_move( arg_t src,  arg_t srcobj,
                                     arg_t dest, arg_t destobj )
 {
-	cap_space_t *srcspace;
 	cap_space_t *destspace;
-	void *srcptr;
-	void *destptr;
 	cap_entry_t *srcent;
-	cap_entry_t *destent;
+
+	__attribute__((unused)) cap_space_t *srcspace;
+	__attribute__((unused)) void *asdfptr;
 
 	CAP_CHECK_INIT();
-	CAP_CHECK( srcspace, src, CAP_TYPE_CAP_SPACE, CAP_MODIFY | CAP_SHARE );
-	CAP_CHECK( destspace, dest, CAP_TYPE_CAP_SPACE, CAP_MODIFY );
-	CAP_CHECK( destptr, destobj, CAP_TYPE_NULL, 0 );
-	CAP_CHECK( srcptr, srcobj, CAP_TYPE_NULL, CAP_SHARE );
+	CAP_CHECK(srcspace, src, CAP_TYPE_CAP_SPACE, CAP_MODIFY | CAP_SHARE);
+	CAP_CHECK(destspace, dest, CAP_TYPE_CAP_SPACE, CAP_MODIFY);
+	CAP_CHECK(asdfptr, destobj, CAP_TYPE_NULL, 0);
+	CAP_CHECK(asdfptr, srcobj, CAP_TYPE_NULL, CAP_SHARE);
 	srcent = cap_ent;
 
 	// possible optimization here: cap_space_replace() will do another lookup
@@ -650,8 +650,8 @@ static int syscall_cspace_cap_move( arg_t src,  arg_t srcobj,
 	// a pointer to the entry that will be overwritten here. For now I'm
 	// leaving it like this to make implementing references and garbage
 	// collection easier in the future.
-	cap_space_replace( destspace, destobj, srcent );
-	cap_space_remove( srcspace, srcobj );
+	cap_space_replace(destspace, destobj, srcent);
+	cap_space_remove(srcspace, srcobj);
 
 	return C4_ERROR_NONE;
 }
@@ -659,18 +659,17 @@ static int syscall_cspace_cap_move( arg_t src,  arg_t srcobj,
 static int syscall_cspace_cap_copy( arg_t src,  arg_t srcobj,
                                     arg_t dest, arg_t destobj )
 {
-	cap_space_t *srcspace;
 	cap_space_t *destspace;
-	void *srcptr;
-	void *destptr;
 	cap_entry_t *srcent;
-	cap_entry_t *destent;
+
+	__attribute__((unused)) cap_space_t *srcspace;
+	__attribute__((unused)) void *asdfptr;
 
 	CAP_CHECK_INIT();
-	CAP_CHECK( srcspace, src, CAP_TYPE_CAP_SPACE, CAP_MODIFY | CAP_SHARE );
-	CAP_CHECK( destspace, dest, CAP_TYPE_CAP_SPACE, CAP_MODIFY );
-	CAP_CHECK( destptr, destobj, CAP_TYPE_NULL, 0 );
-	CAP_CHECK( srcptr, srcobj, CAP_TYPE_NULL, CAP_SHARE );
+	CAP_CHECK(srcspace, src, CAP_TYPE_CAP_SPACE, CAP_MODIFY | CAP_SHARE);
+	CAP_CHECK(destspace, dest, CAP_TYPE_CAP_SPACE, CAP_MODIFY);
+	CAP_CHECK(asdfptr, destobj, CAP_TYPE_NULL, 0);
+	CAP_CHECK(asdfptr, srcobj, CAP_TYPE_NULL, CAP_SHARE);
 	srcent = cap_ent;
 
 	// possible optimization here: cap_space_replace() will do another lookup
@@ -678,7 +677,7 @@ static int syscall_cspace_cap_copy( arg_t src,  arg_t srcobj,
 	// a pointer to the entry that will be overwritten here. For now I'm
 	// leaving it like this to make implementing references and garbage
 	// collection easier in the future.
-	cap_space_replace( destspace, destobj, srcent );
+	cap_space_replace(destspace, destobj, srcent);
 
 	return C4_ERROR_NONE;
 }
@@ -687,7 +686,7 @@ static int syscall_cspace_cap_remove( arg_t capspace, arg_t object,
                                       arg_t c, arg_t d )
 {
 	cap_space_t *cspace;
-	void *aptr;
+	__attribute__((unused)) void *aptr;
 
 	CAP_CHECK_INIT();
 	CAP_CHECK(cspace, capspace, CAP_TYPE_CAP_SPACE, CAP_MODIFY);

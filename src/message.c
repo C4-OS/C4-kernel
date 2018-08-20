@@ -24,20 +24,6 @@ static inline void set_sender_state( thread_t *sender ){
 	}
 }
 
-/*
-static inline thread_t *message_list_find( thread_list_t *list, unsigned id ){
-	for ( thread_node_t *temp = list->first; temp; temp = temp->next ){
-		if ( temp->thread->id == id ){
-			thread_t *ret = temp->thread;
-			thread_list_remove( temp );
-			return ret;
-		}
-	}
-
-	return NULL;
-}
-*/
-
 // check if the target thread can currently recieve this message
 static inline bool message_thread_can_recieve( thread_t *target ){
 	//thread_t *cur = sched_current_thread( );
@@ -80,24 +66,14 @@ retry:
 	}
 
 	cur->state = SCHED_STATE_RUNNING;
-	//cur->recieve_id = 0;
 	UNSET_FLAG( cur, THREAD_FLAG_PENDING_MSG );
 	*msg = cur->message;
 }
 
 //bool message_try_send( msg_queue_t *queue, message_t *msg, unsigned id ){
 bool message_try_send( msg_queue_t *queue, message_t *msg ){
-	//thread_t *thread = thread_get_id( id );
 	thread_t *cur    = sched_current_thread( );
 	thread_t *thread = thread_list_peek( &queue->recievers );
-
-	/*
-	if ( !thread ){
-		debug_printf( "[ipc] invalid message target, %u -> %u, returning\n",
-		              cur->id, id );
-		return true;
-	}
-	*/
 
 	if ( !thread ){
 		return false;
@@ -138,15 +114,12 @@ void message_send( msg_queue_t *queue, message_t *msg ){
 	// once the target does a message_recieve() call, and this thread is
 	// popped from the list.
 	thread_t *cur    = sched_current_thread( );
-	//thread_t *thread = thread_get_id( id );
 
-	//if ( !message_try_send( msg, id )){
 	if ( !message_try_send( queue, msg )){
 		cur->message = *msg;
 		cur->state   = SCHED_STATE_SENDING;
 
 		thread_list_remove( &cur->sched );
-		//thread_list_insert( &thread->waiting, &cur->sched );
 		thread_list_insert( &queue->senders, &cur->sched );
 		sched_thread_yield( );
 
@@ -270,18 +243,8 @@ static void message_node_free( message_node_t *node ){
 }
 
 bool message_send_async( msg_queue_async_t *queue, message_t *msg ){
-	//thread_t *target  = thread_get_id( to );
 	thread_t *current = sched_current_thread( );
 
-	/*
-	if ( !target ){
-		debug_printf( "[ipc] invalid message target, %u -> %u, returning\n",
-		              current->id, to );
-		return false;
-	}
-	*/
-
-	//if ( target->async_queue.elements >= MESSAGE_MAX_QUEUE_ELEMENTS ){
 	if ( queue->elements >= MESSAGE_MAX_QUEUE_ELEMENTS ){
 		debug_printf( "[ipc] async queue full, can't send from %u\n",
 		              current->id );
@@ -289,7 +252,6 @@ bool message_send_async( msg_queue_async_t *queue, message_t *msg ){
 		return false;
 	}
 
-	// TODO: capability checks, once implemented
 	message_queue_async_insert( queue, message_node_alloc( msg ));
 
 	// if there are blocked threads on this endpoint, wake one up
@@ -337,130 +299,11 @@ enum {
 	MAP_IS_GRANT = true,
 };
 
-static inline bool message_map_to( message_t *msg,
-                                   thread_t *target,
-                                   bool grant )
-{
-	// TODO: keep track of whether an entry is a map or grant, and refuse
-	//       to grant an entry to another address space when the current
-	//       address space was given it as a map.
-	//       (continuing to map and subdivide maps is ok, though)
-	//
-	//       rationale being that when all threads referencing an address
-	//       space exit, the memory will need to be reclaimed. So, it's assumed
-	//       that all maps have a backing grant at some other address space,
-	//       and that grants are the `definitive` entry, and when automatic
-	//       cleanup occurs, all granted entries would be granted back to the
-	//       pager for the address space to be redistributed.
-	//
-	//       the thread(s) themselves can't release memory back, because they
-	//       might have faulted and be unable to continue.
-	//
-	//       consider ways to handle granting entries away which are currently
-	//       mapped in other address spaces, but are in the current address
-	//       space as a grant.
-	//       this doesn't violate the assumptions above,
-	//       but would lead to use-after-frees if the pager is given meory
-	//       while another address space continues to use it.
-	//       one solution: keep track of the address space which gave the
-	//       current address space the entry, and keep reference counts on
-	//       entries based off of physical memory addresses.
-
-	unsigned long from   = msg->data[0];
-	unsigned long to     = msg->data[1];
-	unsigned long size   = msg->data[2];
-	unsigned long perms  = msg->data[3];
-	bool should_send = false;
-
-	/*
-	addr_entry_t ent = (addr_entry_t){
-		.virtual     = from,
-		.size        = size,
-		.permissions = perms,
-	};
-
-	thread_t *cur = sched_current_thread( );
-
-	addr_entry_t *temp = addr_map_carve( cur->addr_space->map, &ent );
-	addr_entry_t msgbuf;
-
-	msgbuf = *temp;
-	msgbuf.virtual = to;
-
-	if ( temp ){
-		if ( grant ){
-			addr_space_remove_map( cur->addr_space, temp );
-		}
-
-		if ( target->state == SCHED_STATE_STOPPED ){
-			addr_space_set( target->addr_space );
-			addr_space_insert_map( target->addr_space, &msgbuf );
-			addr_space_set( cur->addr_space );
-
-			should_send = false;
-
-		} else {
-			addr_entry_t *buf  = (addr_entry_t *)msg->data;
-			*buf = msgbuf;
-			//memcpy( buf, &msgbuf, sizeof( addr_entry_t ));
-
-			should_send = true;
-		}
-	}
-	*/
-
-	return should_send;
-}
-
-static inline bool message_unmap( message_t *msg, thread_t *target ){
-	// TODO: capability checks to see if the current thread can send thread
-	//       unmapping messages to the target thread
-
-	thread_t *cur = sched_current_thread( );
-	uintptr_t addr = msg->data[0];
-	bool should_send = false;
-
-	/*
-	if ( target->state == SCHED_STATE_STOPPED ){
-		addr_space_set( target->addr_space );
-		addr_space_unmap( target->addr_space, addr );
-		addr_space_set( cur->addr_space );
-
-	} else {
-		should_send = true;
-	}
-	*/
-
-	return should_send;
-}
-
-static inline void message_request_phys( message_t *msg ){
-	/*
-	thread_t *current = sched_current_thread( );
-
-	addr_entry_t ent = (addr_entry_t){
-		.virtual     = msg->data[0],
-		.physical    = msg->data[1],
-		.size        = msg->data[2],
-		.permissions = msg->data[3],
-	};
-
-	addr_space_insert_map( current->addr_space, &ent );
-	*/
-}
-
 static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 	thread_t *current = sched_current_thread( );
 	bool should_send = false;
 
 	switch ( msg->type ){
-		// output one character to the debug log
-		/*
-		case MESSAGE_TYPE_DEBUG_PUTCHAR:
-			debug_putchar( msg->data[0] );
-			break;
-		*/
-
 		// intercepts message and prints, without sending to the reciever
 		case MESSAGE_TYPE_DEBUG_PRINT:
 			debug_printf(
@@ -475,67 +318,9 @@ static inline bool kernel_msg_handle_send( message_t *msg, thread_t *target ){
 			should_send = true;
 			break;
 
-			/*
-		case MESSAGE_TYPE_DUMP_MAPS:
-			debug_printf(
-				"[ipc] dumping memory maps for thread %u (map: %p)\n",
-				target->id, target->addr_space
-			);
-
-			addr_map_dump( target->addr_space->map );
-			break;
-
-		case MESSAGE_TYPE_UNMAP:
-			should_send = message_unmap( msg, target );
-			break;
-
-		// memory control messages
-		case MESSAGE_TYPE_MAP_TO:
-			should_send = message_map_to( msg, target, MAP_IS_MAP );
-			break;
-
-		case MESSAGE_TYPE_GRANT_TO:
-			should_send = message_map_to( msg, target, MAP_IS_GRANT );
-			break;
-
-		case MESSAGE_TYPE_REQUEST_PHYS:
-			// TODO: access checks for this once capabilities are implemented
-			message_request_phys( msg );
-			break;
-			*/
-
 		case MESSAGE_TYPE_PAGE_FAULT:
 			should_send = true;
 			break;
-
-		/*
-		// handle thread control messages
-		// TODO: once capabilities are implemented, check for proper
-		//       capabilities to send these
-		case MESSAGE_TYPE_CONTINUE:
-			debug_printf( "continuing thread %u\n", target->id );
-			sched_thread_continue( target );
-			break;
-
-		case MESSAGE_TYPE_STOP:
-			debug_printf( "stopping thread %u\n", target->id );
-			sched_thread_stop( target );
-			break;
-		*/
-
-		case MESSAGE_TYPE_INTERRUPT_SUBSCRIBE:
-			interrupt_listen( msg->data[0], current );
-			break;
-
-		/*
-		case MESSAGE_TYPE_INTERRUPT_UNSUBSCRIBE:
-			// TODO: unsubscribe function
-			break;
-
-		case MESSAGE_TYPE_SET_PAGER:
-			target->pager = msg->data[0];
-			break;
-		*/
 
 		default:
 			break;
@@ -565,26 +350,8 @@ static inline bool kernel_msg_handle_recieve( message_t *msg ){
 
 				uint32_t obj = cap_space_insert( cur->cap_space, &entry );
 				msg->data[5] = obj;
-				msg->data[2] = NULL;
+				msg->data[2] = 0;
 			}
-
-		/*
-		case MESSAGE_TYPE_UNMAP:
-			{
-				thread_t *cur = sched_current_thread( );
-				addr_space_unmap( cur->addr_space, msg->data[0] );
-			}
-
-		case MESSAGE_TYPE_MAP_TO:
-		case MESSAGE_TYPE_GRANT_TO:
-			{
-				thread_t *cur = sched_current_thread( );
-				addr_entry_t *ent = (addr_entry_t *)msg->data;
-
-				addr_space_insert_map( cur->addr_space, ent );
-			}
-			break;
-		*/
 
 		default:
 			break;
