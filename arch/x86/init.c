@@ -217,6 +217,8 @@ msg_queue_t *sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	new_thread->cap_space = cap_space_create();
 
 	// TODO: Make a function to do all of this
+	// set up an initial server port for sigma0, later used to send it
+	// the memory map capabilities
 	msg_queue_t *msgq = message_queue_create();
 	cap_entry_t entry = {
 		.type = CAP_TYPE_IPC_SYNC_ENDPOINT,
@@ -225,6 +227,7 @@ msg_queue_t *sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 	};
 	cap_space_replace( new_thread->cap_space, 1, &entry );
 
+	// map sigma0's address space to a capability
 	entry = (cap_entry_t){
 		.type = CAP_TYPE_ADDR_SPACE,
 		.permissions = CAP_ACCESS | CAP_MODIFY | CAP_SHARE | CAP_MULTI_USE,
@@ -232,6 +235,14 @@ msg_queue_t *sigma0_load( multiboot_module_t *module, bootinfo_t *bootinfo ){
 		.object = new_space,
 	};
 	cap_space_replace( new_thread->cap_space, 2, &entry );
+
+	// map the bootinfo structure to a capability
+	entry = (cap_entry_t){
+		.type = CAP_TYPE_PHYS_MEMORY,
+		.permissions = CAP_ACCESS | CAP_SHARE | CAP_MULTI_USE,
+		.object = info,
+	};
+	cap_space_replace( new_thread->cap_space, 3, &entry );
 
 	set_page_dir( page_get_kernel_dir( ));
 	sched_add_thread( new_thread );
