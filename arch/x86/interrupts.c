@@ -106,6 +106,10 @@ void init_interrupts( void ){
 	load_idt( &idtr );
 }
 
+void init_cpu_interrupts( void ){
+	load_idt( &idtr );
+}
+
 void isr_dispatch( interrupt_frame_t *frame ){
 	intr_stats[frame->intr_num]++;
 

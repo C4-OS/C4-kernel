@@ -134,7 +134,8 @@ static inline unsigned ring(unsigned n){
 	return n;
 }
 
-void init_segment_descs( void );
+void init_segment_descs(void);
+void init_cpu_segment_descs(unsigned cpu_num);
 void load_gdt( void *ptr );
 void load_tss( uint32_t seg );
 

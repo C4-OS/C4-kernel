@@ -150,6 +150,17 @@ void *map_phys_page( unsigned perms, void *vaddr, void *raddr ){
 	return (void *)vaddr;
 }
 
+// NOTE: architecture-specific function, maps a 4MB page
+void *map_phys_page_4mb( unsigned perms, void *vaddr, void *raddr ){
+	unsigned dirent = page_dir_entry(vaddr);
+	page_dir_t *dir = current_page_dir();
+
+	dir[dirent] = (page_table_t)
+		add_page_flags(raddr, perms) | PAGE_ARCH_4MB_ENTRY;
+
+	return (void *)vaddr;
+}
+
 void unmap_page( void *vaddress ){
 	unsigned dirent   = page_dir_entry( vaddress );
 	unsigned tableent = page_table_entry( vaddress );

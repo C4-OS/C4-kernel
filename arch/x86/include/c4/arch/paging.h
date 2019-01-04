@@ -5,11 +5,18 @@
 #include <c4/mm/region.h>
 
 #define PAGE_SIZE   0x1000
+// virtual memory base for kernel
 #define KERNEL_BASE 0xfd000000
+
+// physical base for upper memory-mapped registers (base -> 0xfffff000)
+#define IO_PHYS_BASE    0xfec00000
+// virtual memory base for memory-mapped registers
+#define IO_VIRTUAL_BASE 0xfe800000
 
 enum {
 	PAGE_ARCH_PRESENT    = 1 << 0,
 	PAGE_ARCH_WRITABLE   = 1 << 1,
+	// TODO: rename this PAGE_ARCH_USER
 	PAGE_ARCH_SUPERVISOR = 1 << 2,
 	PAGE_ARCH_ACCESSED   = 1 << 5,
 	PAGE_ARCH_4MB_ENTRY  = 1 << 7,
@@ -46,6 +53,16 @@ static inline uintptr_t low_phys_to_virt( uintptr_t addr ){
 	return addr + KERNEL_BASE;
 }
 
+// converts physical I/O address to virtual
+static inline uintptr_t io_phys_to_virt(uintptr_t addr){
+	return (addr - IO_PHYS_BASE) + IO_VIRTUAL_BASE;
+}
+
+// converts virtual I/O address to physical
+static inline uintptr_t io_virt_to_phys(uintptr_t addr){
+	return (addr - IO_VIRTUAL_BASE) + IO_PHYS_BASE;
+}
+
 static inline bool is_kernel_address( void *addr ){
 	uintptr_t temp = (uintptr_t)addr;
 
@@ -57,5 +74,6 @@ static inline bool is_user_address( void *addr ){
 }
 
 void init_paging( region_t *phys_map );
+void *map_phys_page_4mb(unsigned perms, void *vaddr, void *raddr);
 
 #endif

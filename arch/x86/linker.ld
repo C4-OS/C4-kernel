@@ -8,6 +8,11 @@ SECTIONS {
 		*(.__mbHeader)
 	}
 
+	. = 0xfd101000;
+	.__smp_entry : AT(ADDR(.__smp_entry) - 0xfd000000) {
+		*(.__smp_entry)
+	}
+
 	.text ALIGN (0x1000) : AT(ADDR(.text) - 0xfd000000) {
 		*(.text)
 	}

@@ -1,8 +1,9 @@
 CROSS   = $(PWD)/cross/bin/i586-elf-
 ARCH    = x86
-KERN_CC = $(CROSS)gcc
-KERN_AS = nasm
-KERN_LD = $(CROSS)ld
+KERN_AS      = nasm
+KERN_CC      = $(CROSS)gcc
+KERN_LD      = $(CROSS)ld
+KERN_OBJCOPY = $(CROSS)objcopy
 
 ALL_TARGETS = c4-$(ARCH)
 ALL_CLEAN   = c4-$(ARCH)

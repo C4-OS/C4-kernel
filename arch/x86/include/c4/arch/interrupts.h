@@ -84,6 +84,7 @@ typedef struct interrupt_frame {
 typedef void (*intr_handler_t)( interrupt_frame_t *frame );
 
 void init_interrupts( void );
+void init_cpu_interrupts( void );
 void load_idt( idt_ptr_t *ptr );
 void register_interrupt( unsigned num, intr_handler_t func );
 void interrupt_print_frame( interrupt_frame_t *frame );

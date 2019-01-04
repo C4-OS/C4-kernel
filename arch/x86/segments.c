@@ -65,9 +65,10 @@ void *kernel_stack_get( void ){
 	return (void *)task_seg.esp_p0;
 }
 
+static gdt_ptr_t      gdt;
+static segment_desc_t descripts[6];
+
 void init_segment_descs( void ){
-	static gdt_ptr_t      gdt;
-	static segment_desc_t descripts[6];
 
 	memset( &descripts, 0, sizeof( segment_desc_t[6] ));
     memset( &task_seg,  0, sizeof( task_seg ));
@@ -95,4 +96,10 @@ void init_segment_descs( void ){
 
 	load_gdt( &gdt );
 	load_tss( selector( 5, SEG_TABLE_GDT, ring(0) ));
+}
+
+void init_cpu_segment_descs(unsigned cpu_num){
+	// TODO: per-cpu tss
+	load_gdt(&gdt);
+	//load_tss(selector( 5, SEG_TABLE_GDT, ring(0)));
 }

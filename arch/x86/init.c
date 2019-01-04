@@ -397,6 +397,8 @@ void arch_init( multiboot_header_t *header ){
 	addr_space_init( );
 	debug_puts( "done\n" );
 
+	foobizzbuzzlmao();
+
 	debug_puts( "Initializing threading... " );
 	init_threading( );
 	debug_puts( "done\n" );
