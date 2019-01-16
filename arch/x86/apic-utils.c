@@ -95,13 +95,16 @@ void smp_thing(uint32_t cpu_num){
 	asm volatile ("int $1");
 	asm volatile ("int $30");
 
+	apic_timer_one_shot(0x8000000);
+
 	while (true) {
+		debug_printf(" - CPU %u timer\n", cpu_num);
 		asm volatile ("hlt");
 	}
 }
 
 // TODO: rename and whatever
-void foobizzbuzzlmao(void){
+void smp_init(void){
 	debug_puts(">> Multiprocessor test\n");
 	debug_puts(">> mapping io memory...\n");
 
@@ -113,17 +116,15 @@ void foobizzbuzzlmao(void){
 						  (void *)io_phys_to_virt(p), (void *)p);
 	}
 
-	debug_puts("initializing asdf\n");
-	disable_pic();
-	smp_copy_boot_code();
-
-	debug_puts(">> Initialized\n");
-
 	if (!apic_supported()){
 		debug_puts(">> CPU doesn't have an APIC lol\n");
 		goto done;
 	}
 
+	debug_puts("initializing asdf\n");
+	disable_pic();
+	smp_copy_boot_code();
+	debug_puts(">> Initialized\n");
 	apic_enable();
 
 	mp_float_t *mp = mp_find();
@@ -141,8 +142,10 @@ void foobizzbuzzlmao(void){
 		hexdump(ioapic, 128);
 		*/
 
-		void *ioapic = (void *)0xfec00000;
+		/*
+		void *ioapic = (void *)io_phys_to_virt(0xfec00000);
 		debug_printf("- blarg: 0x%x\n", ioapic_read(ioapic, IOAPIC_REG_VERSION));
+		*/
 
 	} else {
 		debug_puts(">> Did not find MP tables\n");
@@ -150,7 +153,8 @@ void foobizzbuzzlmao(void){
 
 done:
 	debug_puts(">> CPU initialization done\n");
-	apic_timer();
+	//apic_timer();
+	apic_timer_one_shot(0x800000);
 
 	/*
 	asm volatile ("sti");

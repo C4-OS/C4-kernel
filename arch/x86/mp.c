@@ -3,6 +3,7 @@
 
 #include <c4/arch/mp/mp.h>
 #include <c4/arch/mp/apic.h>
+#include <c4/arch/mp/ioapic.h>
 #include <c4/arch/mp/cmos.h>
 #include <c4/arch/mp/pit.h>
 #include <c4/arch/mp/bios.h>
@@ -110,11 +111,48 @@ void mp_handle_bus(void *lapic, void *ptr){
 	debug_putchar('\n');
 }
 
+// TODO: probably want to have a generic function to initialize the ioapic
+//       and interrupts and whatever, because we'll have to implement ACPI at
+//       some point too. This can wait until actually doing ACPI stuff though.
 void mp_handle_ioapic(void *lapic, void *ptr){
 	mp_io_apic_t *ioapic = ptr;
 
-	debug_printf(" - id:       %u\n", ioapic->id);
+	debug_printf(" - id:       %u\n",   ioapic->id);
 	debug_printf(" - address:  0x%x\n", ioapic->address);
+
+	void *ioapic_ptr = io_phys_to_virt(ioapic->address);
+
+	// both the version and maximum redirects are encoded in the version register
+	uint32_t version_reg = ioapic_read(ioapic_ptr, IOAPIC_REG_VERSION);
+	uint32_t version = version_reg & 0xff;
+	uint8_t  max_redirects = (version_reg >> 16) & 0xff;
+
+	uint32_t redirect     = ioapic_read(ioapic_ptr, IOAPIC_REG_REDIRECT);
+	uint32_t redirect_end = ioapic_read(ioapic_ptr, IOAPIC_REG_REDIRECT_END);
+
+	debug_printf(" - version:  0x%x\n", version);
+	debug_printf(" - max red:  0x%x\n", max_redirects);
+	debug_printf(" - redirect: 0x%x\n", redirect);
+	debug_printf(" - red end:  0x%x\n", redirect_end);
+
+	debug_printf(" - redirection entries:\n");
+
+	for (unsigned i = 0; i < max_redirects; i++) {
+		uint32_t index = IOAPIC_REG_REDIRECT + (i * 2);
+		uint32_t lower = ioapic_read(ioapic_ptr, index);
+		uint32_t upper = ioapic_read(ioapic_ptr, index + 1);
+
+		debug_printf("    - %x:%x\n", upper, lower);
+		debug_printf("    - vector: 0x%x\n", lower & 0xf);
+		debug_printf("    - delivery: 0x%x\n", (lower >> 8) & 0x3);
+		debug_printf("    - dest. mode: 0x%x\n", (lower >> 11) & 0x1);
+		debug_printf("    - status: 0x%x\n", (lower >> 12) & 0x1);
+		debug_printf("    - polarity: 0x%x\n", (lower >> 13) & 0x1);
+		debug_printf("    - remote irr: 0x%x\n", (lower >> 14) & 0x1);
+		debug_printf("    - trigger: 0x%x\n", (lower >> 15) & 0x1);
+		debug_printf("    - mask: 0x%x\n", (lower >> 16) & 0x1);
+		debug_printf("    - destination: 0x%x\n", upper >> 24);
+	}
 }
 
 void mp_handle_interrupt(void *lapic, void *ptr){

@@ -17,8 +17,23 @@
 #include <c4/message.h>
 #include <c4/bootinfo.h>
 
+// TODO: move this to a more appropriate place
+#include <c4/arch/mp/apic.h>
 void timer_handler( interrupt_frame_t *frame ){
-	sched_switch_thread( );
+	static unsigned counter = 0;
+	uint32_t id = 0;
+
+	if (apic_is_enabled()) {
+		id = apic_get_id();
+		apic_timer_one_shot((id + 1) * 0x1000000);
+	}
+
+	debug_printf(" - CPU %u: timer handler called %u times\n", id, ++counter);
+
+	// TODO: remove `if` when sched_switch_thread handles smp
+	if (id == 0) {
+		sched_switch_thread();
+	}
 }
 
 static inline bool is_valid_vbe( vbe_mode_t *mode ){
@@ -397,7 +412,9 @@ void arch_init( multiboot_header_t *header ){
 	addr_space_init( );
 	debug_puts( "done\n" );
 
-	foobizzbuzzlmao();
+	debug_puts( "Initializing SMP... " );
+	smp_init();
+	debug_puts( "done\n" );
 
 	debug_puts( "Initializing threading... " );
 	init_threading( );

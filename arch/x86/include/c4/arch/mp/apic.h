@@ -56,6 +56,10 @@ bool apic_supported( void );
 void apic_enable( void );
 uint32_t apic_version( void );
 uint32_t apic_get_id( void );
-void apic_timer( void );
+
+bool apic_is_enabled(void);
+void apic_end_of_interrupt(void);
+void apic_timer_periodic(uint32_t initial_count);
+void apic_timer_one_shot(uint32_t initial_count);
 
 #endif

@@ -61,6 +61,8 @@ uintptr_t apic_get_base(void){
 	return io_phys_to_virt(eax & ~0xfff);
 }
 
+static bool apic_enabled = false;
+
 void apic_enable(void){
 	uintptr_t apic = apic_get_base();
 	apic_set_base(apic);
@@ -72,6 +74,12 @@ void apic_enable(void){
 	//       be identity-mapped
 	uint32_t spiv = apic_read((void *)apic, APIC_REG_SPURIOUS_INTR_VEC);
 	apic_write((void *)apic, APIC_REG_SPURIOUS_INTR_VEC, spiv | 0x100);
+
+	apic_enabled = true;
+}
+
+bool apic_is_enabled(void) {
+	return apic_enabled;
 }
 
 uint32_t apic_version(void){
@@ -86,16 +94,38 @@ uint32_t apic_get_id(void){
 	return apic_read(apic, APIC_REG_ID) >> 24;
 }
 
+void apic_end_of_interrupt(void) {
+	void *apic = (void *)apic_get_base();
+
+	// TODO: is this actually the proper way to do this?
+	apic_write(apic, APIC_REG_END_OF_INTR, 0);
+}
+
 enum {
 	APIC_NMI = (4 << 8),
-	TMR_PERIODIC = 0x20000,
+	APIC_TIMER_PERIODIC = 0x20000,
+	APIC_TIMER_ONE_SHOT = 0x00000,
 	TMR_BASEDIV = (1 << 20),
 };
 
-void apic_timer(void){
+// vector for the timer interrupt
+static unsigned timer_vector = 32;
+
+// TODO: abtraction layer to translate from time measurement to count
+void apic_timer_periodic(uint32_t initial_count){
 	void *apic = (void *)apic_get_base();
 
-	apic_write(apic, APIC_REG_LOCAL_TIMER, 32 | TMR_PERIODIC);
+	apic_write(apic, APIC_REG_LOCAL_TIMER, APIC_TIMER_PERIODIC | timer_vector);
 	apic_write(apic, APIC_REG_TIMER_DIV_CONF, 0x3);
-	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, 0x100);
+	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, 0x8000000);
+}
+
+void apic_timer_one_shot(uint32_t initial_count) {
+	void *apic = (void *)apic_get_base();
+
+	debug_printf(" - apic base at %p\n", apic);
+
+	apic_write(apic, APIC_REG_LOCAL_TIMER, APIC_TIMER_ONE_SHOT | timer_vector);
+	apic_write(apic, APIC_REG_TIMER_DIV_CONF, 0x3);
+	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, initial_count);
 }
