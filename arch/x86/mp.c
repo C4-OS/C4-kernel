@@ -1,12 +1,12 @@
 #include <c4/debug.h>
 #include <c4/arch/paging.h>
 
-#include <c4/arch/mp/mp.h>
-#include <c4/arch/mp/apic.h>
-#include <c4/arch/mp/ioapic.h>
-#include <c4/arch/mp/cmos.h>
-#include <c4/arch/mp/pit.h>
-#include <c4/arch/mp/bios.h>
+#include <c4/arch/mp.h>
+#include <c4/arch/apic.h>
+#include <c4/arch/ioapic.h>
+#include <c4/arch/cmos.h>
+#include <c4/arch/pit.h>
+#include <c4/arch/bios.h>
 
 #include <stdbool.h>
 #include <stdint.h>

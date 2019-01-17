@@ -2,10 +2,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <c4/arch/mp/pit.h>
-#include <c4/arch/mp/mp.h>
-#include <c4/arch/mp/apic.h>
-#include <c4/arch/mp/ioapic.h>
+#include <c4/arch/pit.h>
+#include <c4/arch/mp.h>
+#include <c4/arch/apic.h>
+#include <c4/arch/ioapic.h>
 
 #include <c4/klib/string.h>
 

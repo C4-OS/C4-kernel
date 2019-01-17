@@ -1,4 +1,4 @@
-#include <c4/arch/mp/pit.h>
+#include <c4/arch/pit.h>
 #include <stdbool.h>
 
 static inline void outb( uint16_t port, uint8_t value ){

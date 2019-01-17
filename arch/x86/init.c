@@ -18,7 +18,7 @@
 #include <c4/bootinfo.h>
 
 // TODO: move this to a more appropriate place
-#include <c4/arch/mp/apic.h>
+#include <c4/arch/apic.h>
 void timer_handler( interrupt_frame_t *frame ){
 	static unsigned counter = 0;
 	uint32_t id = 0;

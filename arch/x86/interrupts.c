@@ -129,7 +129,7 @@ void isr_dispatch( interrupt_frame_t *frame ){
 }
 
 #include <c4/arch/pic.h>
-#include <c4/arch/mp/apic.h>
+#include <c4/arch/apic.h>
 void irq_dispatch( interrupt_frame_t *frame ){
 	// interrupt stubs in idt.s disable maskable interrupts,
 	// so setting end of interrupt here won't result in nested interrupts

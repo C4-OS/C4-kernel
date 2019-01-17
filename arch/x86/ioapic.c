@@ -1,4 +1,4 @@
-#include <c4/arch/mp/ioapic.h>
+#include <c4/arch/ioapic.h>
 #include <c4/debug.h>
 #include <stddef.h>
 

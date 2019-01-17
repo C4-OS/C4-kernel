@@ -1,4 +1,4 @@
-#include <c4/arch/mp/bios.h>
+#include <c4/arch/bios.h>
 #include <stddef.h>
 #include <stdbool.h>
 

@@ -1,6 +1,6 @@
 #include <c4/debug.h>
-#include <c4/arch/mp/apic.h>
-#include <c4/arch/mp/cpu.h>
+#include <c4/arch/apic.h>
+#include <c4/arch/cpu.h>
 #include <c4/arch/paging.h>
 
 #include <stdint.h>
