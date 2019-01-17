@@ -15,6 +15,7 @@ k-obj += arch/x86/syscall.o
 
 k-obj += arch/x86/mp.o
 k-obj += arch/x86/apic.o
+k-obj += arch/x86/ioapic.o
 k-obj += arch/x86/pit.o
 k-obj += arch/x86/bios.o
 k-obj += arch/x86/apic-utils.o

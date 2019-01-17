@@ -121,7 +121,10 @@ void mp_handle_ioapic(void *lapic, void *ptr){
 	debug_printf(" - address:  0x%x\n", ioapic->address);
 
 	void *ioapic_ptr = io_phys_to_virt(ioapic->address);
+	ioapic_add(ioapic_ptr, ioapic->id);
+	ioapic_print_redirects(ioapic->id);
 
+	/*
 	// both the version and maximum redirects are encoded in the version register
 	uint32_t version_reg = ioapic_read(ioapic_ptr, IOAPIC_REG_VERSION);
 	uint32_t version = version_reg & 0xff;
@@ -153,16 +156,47 @@ void mp_handle_ioapic(void *lapic, void *ptr){
 		debug_printf("    - mask: 0x%x\n", (lower >> 16) & 0x1);
 		debug_printf("    - destination: 0x%x\n", upper >> 24);
 	}
+	*/
+}
+
+void mp_handle_io_interrupt(void *lapic, void *ptr){
+	mp_interrupt_t *intr = ptr;
+
+	debug_printf(" - int type: %u\n", intr->int_type);
+	debug_printf(" - src id:   %u\n", intr->source_bus_id);
+	debug_printf(" - src irq:  %u\n", intr->source_bus_irq);
+	debug_printf(" - dst id:   %u\n", intr->dest_apic_id);
+	debug_printf(" - dst irq:  %u\n", intr->dest_apic_intin);
+
+	ioapic_redirect_t redirect = ioapic_get_redirect(intr->dest_apic_id,
+	                                                 intr->dest_apic_intin);
+
+	uint8_t active_high = (intr->int_type & 3) == 1;
+	uint8_t level_triggered = ((intr->int_type >> 2) & 3) == 3;
+
+	debug_printf(" - act. hi:  %u\n", active_high);
+	debug_printf(" - lvl trig: %u\n", level_triggered);
+
+	redirect.vector = intr->dest_apic_intin + 32; // IRQs start at 32
+	redirect.delivery = IOAPIC_DELIVERY_FIXED;
+	redirect.destination_mode = IOAPIC_DESTINATION_PHYSICAL;
+	redirect.polarity = !active_high;
+	redirect.trigger = level_triggered;
+	redirect.mask = false;
+	redirect.destination = 0; /* TODO: would it be better to
+	                                   assign to other CPUs? */
+
+	ioapic_set_redirect(intr->dest_apic_id, intr->dest_apic_intin, &redirect);
 }
 
 void mp_handle_interrupt(void *lapic, void *ptr){
-	mp_interrupt_t *interrupt = ptr;
+	mp_interrupt_t *intr = ptr;
 
-	debug_printf(" - int type: %u\n", interrupt->int_type);
-	debug_printf(" - src id:   %u\n", interrupt->source_bus_id);
-	debug_printf(" - src irq:  %u\n", interrupt->source_bus_irq);
-	debug_printf(" - dst id:   %u\n", interrupt->dest_apic_id);
-	debug_printf(" - dst irq:  %u\n", interrupt->dest_apic_intin);
+	debug_printf(" - int type: %u\n", intr->int_type);
+	debug_printf(" - src id:   %u\n", intr->source_bus_id);
+	debug_printf(" - src irq:  %u\n", intr->source_bus_irq);
+	debug_printf(" - dst id:   %u\n", intr->dest_apic_id);
+	debug_printf(" - dst irq:  %u\n", intr->dest_apic_intin);
 }
 
 mp_float_t *mp_find(void){
@@ -213,11 +247,26 @@ void mp_enumerate(mp_float_t *mp){
 					  types[entry->type]);
 
 		switch (entry->type){
-			case MP_TYPE_CPU:         mp_handle_cpu(lapic, entry); break;
-			case MP_TYPE_BUS:         mp_handle_bus(lapic, entry); break;
-			case MP_TYPE_IOAPIC:      mp_handle_ioapic(lapic, entry); break;
+			case MP_TYPE_CPU:
+				mp_handle_cpu(lapic, entry);
+				break;
+
+			case MP_TYPE_BUS:
+				mp_handle_bus(lapic, entry);
+				break;
+
+			case MP_TYPE_IOAPIC:
+				mp_handle_ioapic(lapic, entry);
+				break;
+
 			case MP_TYPE_INTERRUPT:
-			case MP_TYPE_INTERRUPT_A: mp_handle_interrupt(lapic, entry); break;
+				mp_handle_io_interrupt(lapic, entry);
+				break;
+
+			case MP_TYPE_INTERRUPT_A:
+				mp_handle_interrupt(lapic, entry);
+				break;
+
 			default: break;
 		}
 
