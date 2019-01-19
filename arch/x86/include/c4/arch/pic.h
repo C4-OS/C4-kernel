@@ -20,5 +20,6 @@ enum {
 void remap_pic_vectors( uint8_t master, uint8_t slave );
 void remap_pic_vectors_default( void );
 void clear_pic_interrupt( void );
+void disable_pic(void);
 
 #endif

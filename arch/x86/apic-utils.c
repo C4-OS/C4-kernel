@@ -6,6 +6,7 @@
 #include <c4/arch/mp.h>
 #include <c4/arch/apic.h>
 #include <c4/arch/ioapic.h>
+#include <c4/arch/pic.h>
 
 #include <c4/klib/string.h>
 
@@ -13,41 +14,6 @@
 #include <c4/debug.h>
 #include <c4/arch/interrupts.h>
 #include <c4/arch/paging.h>
-
-void hexdump(void *addr, size_t n){
-	uint8_t *ptr = addr;
-	unsigned width  = 16;
-	unsigned height = n / width;
-
-	for (unsigned x = 0; x < height; x++){
-		debug_printf("0x%x: ", ptr + x * width);
-
-		for (unsigned y = 0; y < width; y++){
-			uint8_t c = ptr[x * width + y];
-
-			if (c < 0x10){
-				debug_putchar('0');
-			}
-
-			debug_printf("%x ", c);
-		}
-
-		debug_printf("| ");
-
-		for (unsigned y = 0; y < width; y++){
-			uint8_t c = ptr[x * width + y];
-			debug_putchar((c >= ' ' && c < 0x7f)? c : '.');
-		}
-
-		debug_printf("\n");
-	}
-}
-
-void disable_pic(void){
-	asm volatile ("mov $0xff, %al;"
-				   "outb %al, $0xa1;"
-				   "outb %al, $0x21;");
-}
 
 static uint32_t booted_cpus = 0;
 static unsigned num_booted_cpus = 0;
@@ -78,14 +44,6 @@ void smp_copy_boot_code(void){
 	memcpy((void *)bootaddr, &smp_boot_start, smp_code_size);
 }
 
-/*
-bool interrupt_callback(unsigned num, unsigned flags){
-	debug_printf("LAPIC ID %u: interrupt %u\n", apic_get_id(), num);
-
-	return false;
-}
-*/
-
 void smp_thing(uint32_t cpu_num){
 	asm volatile ("cli");
 	debug_printf("- CPU %u is running\n", cpu_num);
@@ -97,13 +55,13 @@ void smp_thing(uint32_t cpu_num){
 	init_cpu_interrupts();
 	debug_printf("- CPU %u APIC is enabled\n", cpu_num);
 
-	asm volatile ("sti");
-	asm volatile ("int $1");
-	asm volatile ("int $30");
+	// TODO: initialize CPU thread context here
 
+	// set up timer, so the global timer handler gets called
 	apic_timer_one_shot(0x8000000);
 
 	while (true) {
+		asm volatile ("sti");
 		asm volatile ("hlt");
 	}
 }
@@ -136,38 +94,11 @@ void smp_init(void){
 	if (mp) {
 		mp_enumerate(mp);
 
-		/*
-		debug_printf("trying bsp lapic at 0x%x:\n", lapic);
-		//debug_printf(" - 0b%b\n", *(uint32_t *)lapic);
-		hexdump(lapic, 128);
-		debug_printf(" - id:      0x%x\n", apic_read(lapic, APIC_REG_ID));
-		debug_printf(" - version: 0x%x\n", apic_read(lapic, APIC_REG_VERSION));
-
-		debug_printf("trying ioapic at 0xfec00000\n");
-		hexdump(ioapic, 128);
-		*/
-
-		/*
-		void *ioapic = (void *)io_phys_to_virt(0xfec00000);
-		debug_printf("- blarg: 0x%x\n", ioapic_read(ioapic, IOAPIC_REG_VERSION));
-		*/
-
 	} else {
 		debug_puts(">> Did not find MP tables\n");
 	}
 
 done:
 	debug_puts(">> CPU initialization done\n");
-	//apic_timer();
 	apic_timer_one_shot(0x800000);
-
-	/*
-	asm volatile ("sti");
-	asm volatile ("int $3");
-	apic_timer();
-
-	while (true) {
-		asm volatile ("hlt");
-	}
-	*/
 }

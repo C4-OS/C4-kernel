@@ -35,3 +35,9 @@ void clear_pic_interrupt( void ){
 	outb( PIC_MASTER | PIC_COMMAND, PIC_COM_END_OF_INTR );
 	outb( PIC_SLAVE  | PIC_COMMAND, PIC_COM_END_OF_INTR );
 }
+
+void disable_pic(void){
+	asm volatile ("mov $0xff, %al;"
+	              "outb %al, $0xa1;"
+	              "outb %al, $0x21;");
+}
