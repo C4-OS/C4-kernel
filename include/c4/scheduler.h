@@ -24,4 +24,9 @@ void sched_thread_kill( thread_t *thread );
 
 thread_t *sched_current_thread( void );
 
+// implemented by architecture-specific code
+// TODO: document what functions are expected to be implemented by
+//       architecture code
+unsigned sched_num_cpus(void);
+
 #endif

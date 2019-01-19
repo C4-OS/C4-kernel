@@ -17,18 +17,31 @@
 #include <c4/message.h>
 #include <c4/bootinfo.h>
 
+
 // TODO: move this to a more appropriate place
 #include <c4/arch/apic.h>
+#include <c4/syncronization.h>
+static mutex_t asdf;
+
 void timer_handler( interrupt_frame_t *frame ){
 	static unsigned counter = 0;
 	uint32_t id = 0;
+
+	if (counter == 0) {
+		counter += 1;
+		mutex_init(&asdf);
+	}
+
+	lock_spinlock(&asdf.lock);
+	counter++;
 
 	if (apic_is_enabled()) {
 		id = apic_get_id();
 		apic_timer_one_shot((id + 1) * 0x1000000);
 	}
 
-	debug_printf(" - CPU %u: timer handler called %u times\n", id, ++counter);
+	debug_printf(" - CPU %u: timer handler called %u times\n", id, counter);
+	lock_unlock(&asdf.lock);
 
 	// TODO: remove `if` when sched_switch_thread handles smp
 	if (id == 0) {

@@ -50,13 +50,19 @@ void disable_pic(void){
 }
 
 static uint32_t booted_cpus = 0;
+static unsigned num_booted_cpus = 0;
 
 void cpu_register(uint32_t cpu_num){
 	booted_cpus |= 1 << cpu_num;
+	num_booted_cpus++;
 }
 
 bool cpu_is_booted(uint32_t cpu_num){
 	return (booted_cpus & (1 << cpu_num)) != 0;
+}
+
+unsigned sched_num_cpus(void) {
+	return num_booted_cpus;
 }
 
 void smp_copy_boot_code(void){
@@ -98,7 +104,6 @@ void smp_thing(uint32_t cpu_num){
 	apic_timer_one_shot(0x8000000);
 
 	while (true) {
-		debug_printf(" - CPU %u timer\n", cpu_num);
 		asm volatile ("hlt");
 	}
 }

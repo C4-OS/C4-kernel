@@ -123,8 +123,6 @@ void apic_timer_periodic(uint32_t initial_count){
 void apic_timer_one_shot(uint32_t initial_count) {
 	void *apic = (void *)apic_get_base();
 
-	debug_printf(" - apic base at %p\n", apic);
-
 	apic_write(apic, APIC_REG_LOCAL_TIMER, APIC_TIMER_ONE_SHOT | timer_vector);
 	apic_write(apic, APIC_REG_TIMER_DIV_CONF, 0x3);
 	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, initial_count);
