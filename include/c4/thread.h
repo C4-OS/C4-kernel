@@ -22,6 +22,8 @@ enum {
 typedef struct thread      thread_t;
 typedef struct thread_node thread_node_t;
 
+// TODO: we need to store a 'back' pointer too, and add functions to
+//       append/remove from the back
 typedef struct thread_list {
 	thread_node_t *first;
 	unsigned       size;

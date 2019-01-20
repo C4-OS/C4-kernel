@@ -3,12 +3,13 @@
 #include <c4/thread.h>
 #include <c4/debug.h>
 #include <c4/common.h>
+#include <c4/syncronization.h>
 
 static thread_list_t sched_list;
-static thread_t *current_thread;
+static thread_t *current_threads[SCHED_MAX_CPUS] = {NULL};
 
 // TODO: once SMP is working, each CPU will need its own idle thread
-static thread_t *global_idle_thread = NULL;
+static thread_t *global_idle_threads[SCHED_MAX_CPUS] = {NULL};
 
 static void idle_thread( void ){
 	for (;;) {
@@ -16,81 +17,59 @@ static void idle_thread( void ){
 	}
 }
 
-void init_scheduler( void ){
-	memset( &sched_list, 0, sizeof(thread_list_t) );
-	global_idle_thread = thread_create_kthread( idle_thread );
-
-	current_thread = NULL;
+void sched_init(void) {
+	memset(&sched_list, 0, sizeof(thread_list_t));
+	memset(&current_threads, 0, sizeof(current_threads));
+	memset(&global_idle_threads, 0, sizeof(global_idle_threads));
 }
 
-static inline thread_t *next_thread( thread_t *thread ){
-	thread_t *foo = thread;
+void sched_init_cpu(void) {
+	unsigned cur_cpu = sched_current_cpu();
 
-	if ( !thread ){
-		return NULL;
-	}
-
-	if ( foo->sched.next ){
-		foo = foo->sched.next->thread;
-
-	} else {
-		foo = sched_list.first->thread;
-	}
-
-	return foo;
+	global_idle_threads[cur_cpu] = thread_create_kthread(idle_thread);
+	current_threads[cur_cpu] = NULL;
 }
 
 // TODO: rewrite scheduler to use a proper priority queue, move blocked
 //       threads to seperate lists/queues/whatever
 void sched_switch_thread( void ){
-	thread_t *next;
-	thread_t *start;
+	static lock_t sched_lock;
+	lock_spinlock(&sched_lock);
 
-	if ( !current_thread
-	  || current_thread == global_idle_thread
-	  || current_thread->sched.list != &sched_list )
+	unsigned cur_cpu = sched_current_cpu();
+
+	if (current_threads[cur_cpu]
+		&& current_threads[cur_cpu] != global_idle_threads[cur_cpu]
+		&& current_threads[cur_cpu]->state == SCHED_STATE_RUNNING)
 	{
-		if ( sched_list.first ){
-			next  = sched_list.first->thread;
-			start = next;
-
-		} else {
-			start = NULL;
-			next  = NULL;
-		}
-
-	} else {
-		next  = current_thread;
-		start = current_thread;
+		thread_list_insert(&sched_list, &current_threads[cur_cpu]->sched);
 	}
 
-	next = next_thread( next );
+	thread_node_t *asdf;
+	for (asdf = sched_list.first; asdf && asdf->next; asdf = asdf->next);
 
-	// TODO: move threads to a seperate 'waiting' list
-	while ( next && next->state != SCHED_STATE_RUNNING ){
-		next = next_thread( next );
+	thread_t *next = asdf? asdf->thread : NULL;
 
-		if ( next == start ){
-			break;
-		}
-	}
-
-	if ( !next || next->state != SCHED_STATE_RUNNING ){
-		sched_jump_to_thread( global_idle_thread );
+	if (next){
+		thread_list_remove(&next->sched);
+		lock_unlock(&sched_lock);
+		sched_jump_to_thread(next);
 
 	} else {
-		sched_jump_to_thread( next );
+		lock_unlock(&sched_lock);
+		sched_jump_to_thread(global_idle_threads[cur_cpu]);
 	}
 }
 
 void kernel_stack_set( void *addr );
 void *kernel_stack_get( void );
 
-void sched_jump_to_thread( thread_t *thread ){
-	thread_t *cur = current_thread;
-	current_thread = thread;
+void sched_jump_to_thread(thread_t *thread) {
+	unsigned cur_cpu = sched_current_cpu();
+	thread_t *cur = current_threads[cur_cpu];
+	current_threads[cur_cpu] = thread;
 
-	if ( !cur || thread->addr_space != cur->addr_space ){
+	if (!cur || thread->addr_space != cur->addr_space) {
 		// XXX: cause a page fault if the address of the new page
 		//      directory isn't mapped here, so it can be mapped in
 		//      the page fault handler (and not cause a triple fault)
@@ -100,16 +79,16 @@ void sched_jump_to_thread( thread_t *thread ){
 		b = b;
 
 		//set_page_dir( thread->addr_space->page_dir );
-		addr_space_set( thread->addr_space );
+		addr_space_set(thread->addr_space);
 	}
 
 	// swap per-thread kernel stacks
-	if ( cur ){
-		cur->kernel_stack = kernel_stack_get( );
+	if (cur) {
+		cur->kernel_stack = kernel_stack_get();
 	}
-	kernel_stack_set( thread->kernel_stack );
 
-	sched_do_thread_switch( cur, thread );
+	kernel_stack_set(thread->kernel_stack);
+	sched_do_thread_switch(cur, thread);
 }
 
 void sched_thread_yield( void ){
@@ -117,7 +96,11 @@ void sched_thread_yield( void ){
 }
 
 void sched_add_thread( thread_t *thread ){
-	thread_list_insert( &sched_list, &thread->sched );
+	// TODO: threads shouldn't be added if they're not already in running state
+	KASSERT(thread->state == SCHED_STATE_RUNNING);
+	if (thread->state == SCHED_STATE_RUNNING) {
+		thread_list_insert(&sched_list, &thread->sched);
+	}
 }
 
 void sched_thread_continue( thread_t *thread ){
@@ -127,6 +110,7 @@ void sched_thread_continue( thread_t *thread ){
 		// clear 'faulted' flag, assuming that if there was a fault,
 		// the thread calling this function has resolved it
 		UNSET_FLAG( thread, THREAD_FLAG_FAULTED );
+		thread_list_insert(&sched_list, &thread->sched);
 	}
 }
 
@@ -143,19 +127,21 @@ void sched_thread_exit( void ){
 	for (;;);
 }
 
-void sched_thread_kill( thread_t *thread ){
-	if ( thread ){
-		if ( thread == current_thread ){
-			current_thread = NULL;
+void sched_thread_kill(thread_t *thread) {
+	unsigned cur_cpu = sched_current_cpu();
+
+	if (thread) {
+		if (thread == current_threads[cur_cpu]) {
+			current_threads[cur_cpu] = NULL;
 		}
 
 		// TODO: reclaim thread resources
-		sched_thread_stop( thread );
-		thread_list_remove( &thread->sched );
-		thread_destroy( thread );
+		sched_thread_stop(thread);
+		thread_list_remove(&thread->sched);
+		thread_destroy(thread);
 	}
 }
 
 thread_t *sched_current_thread( void ){
-	return current_thread;
+	return current_threads[sched_current_cpu()];
 }

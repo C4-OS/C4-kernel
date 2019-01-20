@@ -10,10 +10,11 @@
 
 #include <c4/klib/string.h>
 
-#include <c4/paging.h>
-#include <c4/debug.h>
 #include <c4/arch/interrupts.h>
 #include <c4/arch/paging.h>
+#include <c4/paging.h>
+#include <c4/debug.h>
+#include <c4/scheduler.h>
 
 static uint32_t booted_cpus = 0;
 static unsigned num_booted_cpus = 0;
@@ -29,6 +30,15 @@ bool cpu_is_booted(uint32_t cpu_num){
 
 unsigned sched_num_cpus(void) {
 	return num_booted_cpus;
+}
+
+unsigned sched_current_cpu(void) {
+	if (sched_num_cpus() > 1) {
+		return apic_get_id();
+
+	} else {
+		return 0;
+	}
 }
 
 void smp_copy_boot_code(void){
@@ -53,6 +63,7 @@ void smp_thing(uint32_t cpu_num){
 	apic_enable();
 	init_cpu_segment_descs(cpu_num);
 	init_cpu_interrupts();
+	sched_init_cpu();
 	debug_printf("- CPU %u APIC is enabled\n", cpu_num);
 
 	// TODO: initialize CPU thread context here
