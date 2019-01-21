@@ -5,10 +5,10 @@
 #include <c4/common.h>
 #include <c4/syncronization.h>
 
+static lock_t sched_lock;
 static thread_list_t sched_list;
-static thread_t *current_threads[SCHED_MAX_CPUS] = {NULL};
 
-// TODO: once SMP is working, each CPU will need its own idle thread
+static thread_t *current_threads[SCHED_MAX_CPUS] = {NULL};
 static thread_t *global_idle_threads[SCHED_MAX_CPUS] = {NULL};
 
 static void idle_thread( void ){
@@ -33,7 +33,6 @@ void sched_init_cpu(void) {
 // TODO: rewrite scheduler to use a proper priority queue, move blocked
 //       threads to seperate lists/queues/whatever
 void sched_switch_thread( void ){
-	static lock_t sched_lock;
 	lock_spinlock(&sched_lock);
 
 	unsigned cur_cpu = sched_current_cpu();
@@ -95,23 +94,31 @@ void sched_thread_yield( void ){
 	sched_switch_thread( );
 }
 
-void sched_add_thread( thread_t *thread ){
+void sched_add_thread(thread_t *thread) {
+	lock_spinlock(&sched_lock);
+
 	// TODO: threads shouldn't be added if they're not already in running state
 	KASSERT(thread->state == SCHED_STATE_RUNNING);
 	if (thread->state == SCHED_STATE_RUNNING) {
 		thread_list_insert(&sched_list, &thread->sched);
 	}
+
+	lock_unlock(&sched_lock);
 }
 
-void sched_thread_continue( thread_t *thread ){
-	if ( thread->state == SCHED_STATE_STOPPED ){
+void sched_thread_continue(thread_t *thread) {
+	lock_spinlock(&sched_lock);
+
+	if (thread->state == SCHED_STATE_STOPPED) {
 		thread->state = SCHED_STATE_RUNNING;
 
 		// clear 'faulted' flag, assuming that if there was a fault,
 		// the thread calling this function has resolved it
-		UNSET_FLAG( thread, THREAD_FLAG_FAULTED );
+		UNSET_FLAG(thread, THREAD_FLAG_FAULTED);
 		thread_list_insert(&sched_list, &thread->sched);
 	}
+
+	lock_unlock(&sched_lock);
 }
 
 void sched_thread_stop( thread_t *thread ){
@@ -136,8 +143,12 @@ void sched_thread_kill(thread_t *thread) {
 		}
 
 		// TODO: reclaim thread resources
+		//       actually this will be done with garbage collection, can
+		//       remove the thread_destroy() call here
+		lock_spinlock(&sched_lock);
 		sched_thread_stop(thread);
 		thread_list_remove(&thread->sched);
+		lock_unlock(&sched_lock);
 		thread_destroy(thread);
 	}
 }
