@@ -2,6 +2,7 @@
 #include <c4/arch/apic.h>
 #include <c4/arch/cpu.h>
 #include <c4/arch/paging.h>
+#include <c4/arch/pit.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -111,12 +112,17 @@ enum {
 // vector for the timer interrupt
 static unsigned timer_vector = 32;
 
+void apic_timer_stop(void) {
+	void *apic = (void *)apic_get_base();
+	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, 0);
+}
+
 // TODO: abtraction layer to translate from time measurement to count
 void apic_timer_periodic(uint32_t initial_count){
 	void *apic = (void *)apic_get_base();
 
 	apic_write(apic, APIC_REG_LOCAL_TIMER, APIC_TIMER_PERIODIC | timer_vector);
-	apic_write(apic, APIC_REG_TIMER_DIV_CONF, 0x3);
+	apic_write(apic, APIC_REG_TIMER_DIV_CONF, APIC_TIMER_DIV_16);
 	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, 0x8000000);
 }
 
@@ -124,6 +130,29 @@ void apic_timer_one_shot(uint32_t initial_count) {
 	void *apic = (void *)apic_get_base();
 
 	apic_write(apic, APIC_REG_LOCAL_TIMER, APIC_TIMER_ONE_SHOT | timer_vector);
-	apic_write(apic, APIC_REG_TIMER_DIV_CONF, 0x3);
+	apic_write(apic, APIC_REG_TIMER_DIV_CONF, APIC_TIMER_DIV_16);
 	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, initial_count);
+}
+
+uint32_t apic_timer_measure(uint32_t pit_time) {
+	void *apic = (void *)apic_get_base();
+
+	apic_write(apic, APIC_REG_TIMER_DIV_CONF, APIC_TIMER_DIV_16);
+	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, 0xffffffff);
+
+	pit_wait_poll(pit_time);
+	uint32_t counter = apic_read(apic, APIC_REG_TIMER_CUR_COUNT);
+	apic_write(apic, APIC_REG_TIMER_INIT_COUNT, 0);
+
+	return 0xffffffff - counter;
+}
+
+uint32_t apic_timer_usec_to_ticks(uint32_t useconds){
+	static uint64_t ticks_per_10ms = 0;
+
+	if (!ticks_per_10ms) {
+		ticks_per_10ms = apic_timer_measure(PIT_WAIT_10MS);
+	}
+
+	return (uint32_t)((ticks_per_10ms * useconds) / 10000);
 }

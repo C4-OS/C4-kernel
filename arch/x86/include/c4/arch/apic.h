@@ -48,6 +48,18 @@ enum {
 	APIC_IPI_START = 0x600,
 };
 
+// apic timer divisor options
+enum {
+	APIC_TIMER_DIV_2   = 0,
+	APIC_TIMER_DIV_4   = 1,
+	APIC_TIMER_DIV_8   = 2,
+	APIC_TIMER_DIV_16  = 3,
+	APIC_TIMER_DIV_32  = 4,
+	APIC_TIMER_DIV_64  = 5,
+	APIC_TIMER_DIV_128 = 6,
+	APIC_TIMER_DIV_1   = 7,
+};
+
 uint32_t apic_read( void *addr, uint32_t reg );
 void apic_write( void *addr, uint32_t reg, uint32_t value );
 void apic_send_ipi( void *addr, uint32_t type, uint8_t lapic_id );
@@ -59,7 +71,10 @@ uint32_t apic_get_id( void );
 
 bool apic_is_enabled(void);
 void apic_end_of_interrupt(void);
+void apic_timer_stop(void);
 void apic_timer_periodic(uint32_t initial_count);
 void apic_timer_one_shot(uint32_t initial_count);
+uint32_t apic_timer_measure(uint32_t pit_time);
+uint32_t apic_timer_usec_to_ticks(uint32_t useconds);
 
 #endif

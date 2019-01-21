@@ -95,6 +95,11 @@ void smp_init(void){
 		goto done;
 	}
 
+	// XXX: need this here so the number of apic timer ticks can be cached
+	//      in apic_timer_usec_to_ticks()
+	uint32_t ticks = apic_timer_usec_to_ticks(1000000);
+	debug_printf(">> APIC ticks in 1s: %u\n", ticks);
+
 	debug_puts("initializing asdf\n");
 	disable_pic();
 	smp_copy_boot_code();

@@ -37,7 +37,8 @@ void timer_handler( interrupt_frame_t *frame ){
 
 	if (apic_is_enabled()) {
 		id = apic_get_id();
-		apic_timer_one_shot(0x100000);
+		// for now, set the timer to activate every 10ms
+		apic_timer_one_shot(apic_timer_usec_to_ticks(10000));
 	}
 
 	//debug_printf(" - CPU %u: timer handler called %u times\n", id, counter);
