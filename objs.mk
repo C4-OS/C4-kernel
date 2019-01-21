@@ -18,6 +18,6 @@ include src/objs.mk
 
 c4-$(ARCH): $(k-obj)
 	@echo CC $< -o $@
-	@$(KERN_CC) $(K_CFLAGS) -T arch/$(ARCH)/linker.ld $(k-obj) -o $@
+	@$(KERN_CC) $(K_CFLAGS) -T arch/$(ARCH)/linker.ld $(k-obj) -o $@ -lgcc
 
 ALL_CLEAN += $(k-obj)
