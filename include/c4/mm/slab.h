@@ -1,6 +1,7 @@
 #ifndef _C4_SLAB_H
 #define _C4_SLAB_H 1
 #include <c4/mm/region.h>
+#include <c4/syncronization.h>
 
 #define MAGIC          0xabadc0de
 #define MAX_FREE_SLABS 2
@@ -26,6 +27,8 @@ typedef struct slab_list {
 } slab_list_t;
 
 typedef struct slab {
+	lock_t lock;
+
 	slab_list_t free;
 	slab_list_t partial;
 	slab_list_t full;

@@ -76,84 +76,91 @@ static inline void slab_dealloc_free_block( slab_t *slab ){
 	}
 }
 
-void *slab_alloc( slab_t *slab ){
+void *slab_alloc(slab_t *slab) {
 	bool      retried = false;
 	slab_blk_t *block = (void *)0;
 
+	lock_spinlock(&slab->lock);
 retry:
-	if ( slab->partial.first ){
+	if (slab->partial.first) {
 		block = slab->partial.first;
 
-	} else if ( slab->free.first ){
+	} else if (slab->free.first) {
 		block = slab->free.first;
 
 	} else {
-		slab_blk_t *temp = slab_alloc_block( slab );
+		slab_blk_t *temp = slab_alloc_block(slab);
 
-		slab_move_block( temp, &slab->free );
-		if ( !retried ){
-			//debug_printf( "allocated new block %p, retrying...\n", temp );
+		slab_move_block(temp, &slab->free);
+		if (!retried) {
+			//debug_printf("allocated new block %p, retrying...\n", temp);
 			retried = true;
 			goto retry;
 		}
 	}
 
-	if ( block ){
-		int n = bitmap_first_free( &block->map, BITMAP_BPS );
+	if (block) {
+		int n = bitmap_first_free(&block->map, BITMAP_BPS);
 		uintptr_t addr = (uintptr_t)block + n * slab->obj_size;
 
 		// leaving some debugging statements commented out for further
 		// planned work on slab allocator
 		/*
-		debug_printf( "bitmap: 0x%x, location: %u, pages: %u\n",
-			block->map, n, slab->total_pages );
-		 */
+		   debug_printf("bitmap: 0x%x, location: %u, pages: %u\n",
+		   block->map, n, slab->total_pages);
+		   */
 
-		bitmap_set( &block->map, n );
+		bitmap_set(&block->map, n);
 
-		if ( block->map == BITMAP_ENT_FULL ){
-			slab_move_block( block, &slab->full );
+		if (block->map == BITMAP_ENT_FULL) {
+			slab_move_block(block, &slab->full);
 
-		} else if ( block->list == &slab->free ){
-			slab_move_block( block, &slab->partial );
+		} else if (block->list == &slab->free) {
+			slab_move_block(block, &slab->partial);
 		}
 
 		// run the constructor, if there is one
-		slab->ctor? slab->ctor( (void *)addr ) : 0;
+		slab->ctor? slab->ctor((void *)addr) : 0;
 
+		lock_unlock(&slab->lock);
 		return (void *)addr;
 	}
 
+	lock_unlock(&slab->lock);
 	return (void *)0;
 }
 
-void slab_free( slab_t *slab, void *ptr ){
-	if ( ptr ){
+void slab_free(slab_t *slab, void *ptr) {
+	lock_spinlock(&slab->lock);
+
+	if (ptr) {
 		uintptr_t temp    = (uintptr_t)ptr;
 		uintptr_t addr    = temp / PAGE_SIZE * PAGE_SIZE;
 		uintptr_t pos     = (temp - addr) / (PAGE_SIZE / BITMAP_BPS);
 		slab_blk_t *block = (void *)addr;
 
-		if ( block->magic != MAGIC ){
-			debug_printf( "bad magic! corrupted block or bad address at %p?", ptr );
+		if (block->magic != MAGIC) {
+			debug_printf("bad magic! corrupted block or bad address at %p?", ptr);
+			lock_unlock(&slab->lock);
 			return;
 		}
 
 		// run the destructor, if there is one
-		slab->dtor? slab->dtor( (void *)addr ) : 0;
-		bitmap_unset( &block->map, pos );
+		slab->dtor? slab->dtor((void *)addr) : 0;
+		bitmap_unset(&block->map, pos);
 
 		// test to see if there are any entries besides the first
 		// information block, and stuff it into the free list if not
-		if ( block->map == 1 ){
-			slab_move_block( block, &slab->free );
+		if (block->map == 1) {
+			slab_move_block(block, &slab->free);
+			slab_dealloc_free_block(slab);
 
-			slab_dealloc_free_block( slab );
-
-		} else if ( block->list == &slab->full ){
-			slab_move_block( block, &slab->partial );
+		} else if (block->list == &slab->full) {
+			slab_move_block(block, &slab->partial);
 		}
 	}
+
+	lock_unlock(&slab->lock);
 }
 
 static inline unsigned slab_adjust_size( unsigned size ){
@@ -175,16 +182,17 @@ static inline unsigned slab_adjust_size( unsigned size ){
 	return ret;
 }
 
-slab_t *slab_init_at( slab_t   *slab,
-                      region_t *region,
-					  unsigned obj_size,
-                      void (*ctor)(void *ptr),
-                      void (*dtor)(void *ptr) )
+slab_t *slab_init_at(slab_t   *slab,
+                     region_t *region,
+                     unsigned obj_size,
+                     void (*ctor)(void *ptr),
+                     void (*dtor)(void *ptr))
 {
-	memset( slab, 0, sizeof( slab_t ));
+	memset(slab, 0, sizeof(slab_t));
+	lock_unlock(&slab->lock);
 
 	slab->total_pages = 0;
-	slab->obj_size    = slab_adjust_size( obj_size );
+	slab->obj_size    = slab_adjust_size(obj_size);
 	slab->ctor        = ctor;
 	slab->dtor        = dtor;
 	slab->region      = region;
