@@ -38,7 +38,7 @@ void *queue_pop_min(queue_t *a, queue_t *b, queue_compare comp);
 #define TYPESAFE_QUEUE(TYPE, OUTTYPE) \
 	typedef struct { queue_t queue; } OUTTYPE; \
 \
-	static inline OUTTYPE* OUTTYPE##_init(OUTTYPE *queue) { \
+	static inline void OUTTYPE##_init(OUTTYPE *queue) { \
 		queue_init(&queue->queue); \
 	} \
 \

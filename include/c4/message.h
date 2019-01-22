@@ -72,14 +72,14 @@ typedef struct message_node {
 typedef struct msg_queue {
 	kobject_t object;
 
-	thread_list_t recievers;
-	thread_list_t senders;
+	thread_queue recievers;
+	thread_queue senders;
 } msg_queue_t;
 
 typedef struct msg_queue_async {
 	kobject_t object;
 
-	thread_list_t  recievers;
+	thread_queue recievers;
 	message_node_t *first;
 	message_node_t *last;
 

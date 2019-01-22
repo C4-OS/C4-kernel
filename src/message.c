@@ -39,7 +39,7 @@ retry:
 	kobject_lock(&queue->object);
 
 	if (FLAG(cur, THREAD_FLAG_PENDING_MSG) == 0) {
-		thread_t *sender = thread_list_pop(&queue->senders);
+		thread_t *sender = thread_queue_pop_front(&queue->senders);
 
 		// if there's a thread in the queue, copy it's message to the buffer
 		// and requeue it in the scheduler
@@ -53,9 +53,7 @@ retry:
 		// until a message is recieved
 		} else {
 			cur->state = SCHED_STATE_WAITING;
-
-			thread_list_remove(&cur->sched);
-			thread_list_insert(&queue->recievers, &cur->sched);
+			thread_queue_push_back(&queue->recievers, cur);
 
 			kobject_unlock(&queue->object);
 			sched_thread_yield();
@@ -78,7 +76,7 @@ retry:
 bool message_try_send(msg_queue_t *queue, message_t *msg) {
 	thread_t *cur    = sched_current_thread();
 	// TODO: lock thread
-	thread_t *thread = thread_list_peek(&queue->recievers);
+	thread_t *thread = thread_queue_pop_front(&queue->recievers);
 
 	if (!thread) {
 		return false;
@@ -96,18 +94,12 @@ bool message_try_send(msg_queue_t *queue, message_t *msg) {
 	// set sender field
 	msg->sender = cur->id;
 
-	if (message_thread_can_recieve(thread)) {
-		SET_FLAG(thread, THREAD_FLAG_PENDING_MSG);
+	SET_FLAG(thread, THREAD_FLAG_PENDING_MSG);
+	thread->state = SCHED_STATE_RUNNING;
+	thread->message = *msg;
+	sched_add_thread(thread);
 
-		thread_list_remove(&thread->sched);
-		thread->state = SCHED_STATE_RUNNING;
-		thread->message = *msg;
-		sched_add_thread(thread);
-
-		return true;
-	}
-
-	return false;
+	return true;
 }
 
 void message_send(msg_queue_t *queue, message_t *msg) {
@@ -117,15 +109,14 @@ void message_send(msg_queue_t *queue, message_t *msg) {
 	// the target then copies the message buffer from the sender thread
 	// once the target does a message_recieve() call, and this thread is
 	// popped from the list.
-	thread_t *cur    = sched_current_thread();
+	thread_t *cur = sched_current_thread();
 	kobject_lock(&queue->object);
 
 	if (!message_try_send(queue, msg)) {
 		cur->message = *msg;
 		cur->state   = SCHED_STATE_SENDING;
+		thread_queue_push_back(&queue->senders, cur);
 
-		thread_list_remove(&cur->sched);
-		thread_list_insert(&queue->senders, &cur->sched);
 		kobject_unlock(&queue->object);
 		sched_thread_yield();
 
@@ -148,6 +139,7 @@ void message_send_capability(msg_queue_t *queue, cap_entry_t *cap) {
 	message_send(queue, &msg);
 }
 
+// TODO: possibly replace this with a generic queue
 static inline void message_queue_async_insert( msg_queue_async_t *queue,
                                                message_node_t  *node )
 {
@@ -187,34 +179,37 @@ static slab_t message_node_slab;
 static slab_t message_queue_slab;
 static slab_t message_queue_async_slab;
 
-msg_queue_t *message_queue_create( void ){
+msg_queue_t *message_queue_create(void) {
 	static bool initialized = false;
 
-	if ( !initialized ){
-		slab_init_at( &message_queue_slab, region_get_global(),
-		              sizeof( msg_queue_t ), NO_CTOR, NO_DTOR );
+	if (!initialized) {
+		slab_init_at(&message_queue_slab, region_get_global(),
+		              sizeof(msg_queue_t), NO_CTOR, NO_DTOR);
 
 		initialized = true;
 	}
 
-	msg_queue_t *ret = slab_alloc( &message_queue_slab );
-	KASSERT( ret != NULL );
+	msg_queue_t *ret = slab_alloc(&message_queue_slab);
+	KASSERT(ret != NULL);
+	thread_queue_init(&ret->recievers);
+	thread_queue_init(&ret->senders);
 
 	return ret;
 }
 
-msg_queue_async_t *message_queue_async_create( void ){
+msg_queue_async_t *message_queue_async_create(void) {
 	static bool initialized = false;
 
-	if ( !initialized ){
-		slab_init_at( &message_queue_async_slab, region_get_global(),
-		              sizeof( msg_queue_t ), NO_CTOR, NO_DTOR );
+	if (!initialized) {
+		slab_init_at(&message_queue_async_slab, region_get_global(),
+		              sizeof(msg_queue_t), NO_CTOR, NO_DTOR);
 
 		initialized = true;
 	}
 
-	msg_queue_async_t *ret = slab_alloc( &message_queue_async_slab );
-	KASSERT( ret != NULL );
+	msg_queue_async_t *ret = slab_alloc(&message_queue_async_slab);
+	KASSERT(ret != NULL);
+	thread_queue_init(&ret->recievers);
 
 	return ret;
 }
@@ -266,7 +261,8 @@ bool message_send_async(msg_queue_async_t *queue, message_t *msg) {
 
 	// if there are blocked threads on this endpoint, wake one up
 	// so that it can recieve a message
-	thread_t *target = thread_list_pop(&queue->recievers);
+	thread_t *target = thread_queue_pop_front(&queue->recievers);
+
 	if (target) {
 		target->state = SCHED_STATE_RUNNING;
 		sched_add_thread(target);
@@ -298,8 +294,7 @@ retry:
 		// same as message_recieve(), the sender will set the thread's state
 		// to 'running' whenever they get around to sending a message
 		current->state = SCHED_STATE_WAITING_ASYNC;
-		thread_list_remove(&current->sched);
-		thread_list_insert(&queue->recievers, &current->sched);
+		thread_queue_push_back(&queue->recievers, current);
 
 		kobject_unlock(&queue->object);
 		sched_thread_yield();

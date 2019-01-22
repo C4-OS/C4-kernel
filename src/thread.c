@@ -6,10 +6,6 @@
 
 static slab_t thread_slab;
 static unsigned thread_counter = 0;
-thread_list_t thread_global_list = {
-	.first = NULL,
-	.size  = 0,
-};
 
 void init_threading( void ){
 	static bool initialized = false;
@@ -27,19 +23,17 @@ thread_t *thread_create( void (*entry)(void),
                          void *stack,
                          unsigned flags )
 {
-	thread_t *ret = slab_alloc( &thread_slab );
+	thread_t *ret = slab_alloc(&thread_slab);
 
-	thread_set_init_state( ret, entry, stack, flags );
-
-	ret->sched.thread  = ret;
-	ret->intern.thread = ret;
+	thread_set_init_state(ret, entry, stack, flags);
 
 	ret->id         = thread_counter++;
 	ret->addr_space = space;
 	ret->flags      = flags;
 	ret->cap_space  = NULL;
 
-	thread_list_insert( &thread_global_list, &ret->intern );
+	// TODO: register with kobject list
+	//thread_list_insert(&thread_global_list, &ret->intern);
 
 	return ret;
 }
@@ -56,72 +50,9 @@ thread_t *thread_create_kthread( void (*entry)(void)){
 	                      THREAD_FLAG_NONE );
 }
 
-void thread_destroy( thread_t *thread ){
-	thread_list_remove( &thread->intern );
-	slab_free( &thread_slab, thread );
-}
-
-// TODO: maybe merge the slab list functions with the functions here
-//       using a common doubly-linked list implementation
-void thread_list_insert( thread_list_t *list, thread_node_t *node ){
-	node->list = list;
-	node->next = list->first;
-	node->prev = NULL;
-
-	if ( list->first ){
-		list->first->prev = node;
-	}
-
-	list->first = node;
-}
-
-void thread_list_remove( thread_node_t *node ){
-	if ( node->list ){
-		if ( node->prev ){
-			node->prev->next = node->next;
-		}
-
-		if ( node->next ){
-			node->next->prev = node->prev;
-		}
-
-		if ( node == node->list->first ){
-			node->list->first = node->next;
-		}
-	}
-}
-
-thread_t *thread_list_pop( thread_list_t *list ){
-	thread_t *ret = NULL;
-
-	if ( list->first ){
-		ret = list->first->thread;
-		thread_list_remove( list->first );
-	}
-
-	return ret;
-}
-
-thread_t *thread_list_peek( thread_list_t *list ){
-	thread_t *ret = NULL;
-
-	if ( list->first ){
-		ret = list->first->thread;
-	}
-
-	return ret;
-}
-
-thread_t *thread_get_id( unsigned id ){
-	thread_node_t *node = thread_global_list.first;
-
-	for ( ; node; node = node->next ){
-		if ( node->thread->id == id ){
-			return node->thread;
-		}
-	}
-
-	return NULL;
+void thread_destroy(thread_t *thread) {
+	//thread_list_remove( &thread->intern );
+	slab_free(&thread_slab, thread);
 }
 
 void thread_set_addrspace( thread_t *thread, addr_space_t *aspace ){
