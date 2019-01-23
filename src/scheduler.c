@@ -41,6 +41,7 @@ void sched_switch_thread( void ){
 		&& current_threads[cur_cpu] != global_idle_threads[cur_cpu]
 		&& current_threads[cur_cpu]->state == SCHED_STATE_RUNNING)
 	{
+		UNSET_FLAG(current_threads[cur_cpu], THREAD_FLAG_RUNNING);
 		thread_queue_push_back(&sched_list, current_threads[cur_cpu]);
 	}
 
@@ -48,6 +49,7 @@ void sched_switch_thread( void ){
 
 	if (next){
 		KASSERT(next->state == SCHED_STATE_RUNNING);
+		KASSERT(FLAG(next, THREAD_FLAG_RUNNING) == false);
 		lock_unlock(&sched_lock);
 		sched_jump_to_thread(next);
 
@@ -81,8 +83,10 @@ void sched_jump_to_thread(thread_t *thread) {
 	// swap per-thread kernel stacks
 	if (cur) {
 		cur->kernel_stack = kernel_stack_get();
+		UNSET_FLAG(cur, THREAD_FLAG_RUNNING);
 	}
 
+	SET_FLAG(thread, THREAD_FLAG_RUNNING);
 	kernel_stack_set(thread->kernel_stack);
 	sched_do_thread_switch(cur, thread);
 }
