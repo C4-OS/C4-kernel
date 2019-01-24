@@ -45,7 +45,7 @@ thread_t *thread_create_kthread( void (*entry)(void)){
 	stack += PAGE_SIZE;
 
 	return thread_create( entry,
-	                      addr_space_reference( addr_space_kernel( )),
+	                      addr_space_kernel(),
 	                      stack,
 	                      THREAD_FLAG_NONE );
 }

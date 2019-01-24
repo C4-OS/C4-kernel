@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include <c4/kobject.h>
+
 enum {
 	PHYS_FRAME_FLAG_NONE = 0,
 	// TODO: doxygen markup here
@@ -16,11 +18,11 @@ enum {
 
 // structure representing a linear block of physical memory
 typedef struct phys_frame {
-	// TODO locking, GC structure, etc
+	kobject_t object;
+
 	uintptr_t address;
 	size_t    size;
 	unsigned  flags;
-	unsigned  references;
 	unsigned  mappings;
 } phys_frame_t;
 
@@ -61,17 +63,16 @@ typedef struct addr_map {
 } addr_map_t;
 
 typedef struct addr_space {
+	kobject_t  object;
+
 	page_dir_t *page_dir;
 	addr_map_t *map;
 	region_t   *region;
-
-	unsigned references;
 } addr_space_t;
 
 void addr_space_init( void );
 
 addr_space_t *addr_space_clone( addr_space_t *space );
-addr_space_t *addr_space_reference( addr_space_t *space );
 addr_space_t *addr_space_kernel( void );
 void          addr_space_free( addr_space_t *space );
 void          addr_space_set( addr_space_t *space );
@@ -95,7 +96,7 @@ void          phys_frame_unmap( phys_frame_t *phys );
 phys_frame_t *phys_frame_split( phys_frame_t *phys, size_t offset );
 
 addr_map_t *addr_map_create( region_t *region );
-void        addr_map_free( addr_map_t *map );
+//void        addr_map_free( addr_map_t *map );
 void        addr_map_dump( addr_map_t *map );
 
 addr_entry_t *addr_map_lookup( addr_map_t *map, unsigned long address );

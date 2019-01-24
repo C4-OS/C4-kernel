@@ -6,60 +6,58 @@
 #include <c4/common.h>
 #include <c4/paging.h>
 #include <c4/error.h>
+#include <c4/kobject.h>
+#include <stdatomic.h>
 
 static slab_t addr_space_slab;
 static slab_t phys_frame_slab;
 static addr_space_t *kernel_space;
 
-void addr_space_init( void ){
+void addr_space_init(void) {
 	static bool initialized = false;
 
-	if ( !initialized ){
-		slab_init_at( &addr_space_slab, region_get_global( ),
-		              sizeof( addr_space_t ), NO_CTOR, NO_DTOR );
+	if (!initialized) {
+		slab_init_at(&addr_space_slab, region_get_global(),
+		              sizeof(addr_space_t), NO_CTOR, NO_DTOR);
 
 		// manually initialize the kernel address space
-		kernel_space             = slab_alloc( &addr_space_slab );
-		kernel_space->page_dir   = page_get_kernel_dir( );
-		kernel_space->map        = addr_map_create( region_get_global( ));
-		kernel_space->region     = region_get_global( );
-		kernel_space->references = 1;
+		kernel_space             = slab_alloc(&addr_space_slab);
+		kernel_space->page_dir   = page_get_kernel_dir();
+		kernel_space->map        = addr_map_create(region_get_global());
+		kernel_space->region     = region_get_global();
+		kobject_init(&kernel_space->object, KOBJECT_TYPE_ADDR_SPACE);
 
 		initialized = true;
 	}
 }
 
-addr_space_t *addr_space_clone( addr_space_t *space ){
+addr_space_t *addr_space_clone(addr_space_t *space) {
 	addr_space_t *ret = NULL;
+	kobject_lock(&space->object);
 
-	ret = slab_alloc( &addr_space_slab );
-	KASSERT( ret != NULL );
+	ret = slab_alloc(&addr_space_slab);
+	KASSERT(ret != NULL);
 
-	ret->page_dir   = clone_page_dir( space->page_dir );
-	ret->map        = addr_map_create( space->region );
+	ret->page_dir   = clone_page_dir(space->page_dir);
+	ret->map        = addr_map_create(space->region);
 	ret->region     = space->region;
-	ret->references = 1;
+	kobject_init(&ret->object, KOBJECT_TYPE_ADDR_SPACE);
 
-	KASSERT( ret->page_dir != NULL );
-	KASSERT( ret->map      != NULL );
+	KASSERT(ret->page_dir != NULL);
+	KASSERT(ret->map      != NULL);
 
-	memcpy( ret->map, space->map, sizeof( *ret->map ));
+	memcpy(ret->map, space->map, sizeof(*ret->map));
 
+	kobject_unlock(&space->object);
 	return ret;
-}
-
-addr_space_t *addr_space_reference( addr_space_t *space ){
-	if ( space ){
-		space->references++;
-	}
-
-	return space;
 }
 
 addr_space_t *addr_space_kernel( void ){
 	return kernel_space;
 }
 
+// TODO: reimplement this once GC is done
+/*
 void addr_space_free( addr_space_t *space ){
 	if ( space && --space->references == 0 ){
 		region_free( space->region, space->page_dir );
@@ -67,6 +65,7 @@ void addr_space_free( addr_space_t *space ){
 		slab_free( &addr_space_slab, space );
 	}
 }
+*/
 
 void addr_space_set( addr_space_t *space ){
 	set_page_dir( space->page_dir );
@@ -86,132 +85,147 @@ int addr_space_map( addr_space_t *a,
                     addr_space_t *b,
                     addr_entry_t *ent );
 
-int addr_space_unmap( addr_space_t *space, unsigned long address ){
-	addr_entry_t *ent = addr_map_lookup( space->map, address );
+int addr_space_unmap(addr_space_t *space, unsigned long address) {
+	kobject_lock(&space->object);
+	addr_entry_t *ent = addr_map_lookup(space->map, address);
 
-	if ( !ent ){
+	if (!ent) {
+		kobject_unlock(&space->object);
 		return -C4_ERROR_INVALID_ARGUMENT;
 	}
 
-	addr_space_remove_map( space, ent );
+	addr_space_remove_map(space, ent);
+
+	kobject_unlock(&space->object);
 	return -C4_ERROR_NONE;
 }
 
-int addr_space_insert_map( addr_space_t *space, addr_entry_t *ent ){
+int addr_space_insert_map(addr_space_t *space, addr_entry_t *ent) {
 	phys_frame_t *phys = ent->frame;
 	uintptr_t v_start = ent->addr     - (ent->addr     % PAGE_SIZE);
 	uintptr_t p_start = phys->address - (phys->address % PAGE_SIZE);
 
-	phys_frame_map( ent->frame );
-	addr_map_insert( space->map, ent );
+	kobject_lock(&space->object);
+	kobject_lock(&phys->object);
 
-	for ( uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE )
+	phys_frame_map(ent->frame);
+	addr_map_insert(space->map, ent);
+
+	for (uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE)
 	{
 		void *v = (void *)(v_start + page);
 		void *p = (void *)(p_start + page);
 
-		map_phys_page( ent->permissions, v, p );
+		map_phys_page(ent->permissions, v, p);
 	}
 
+	kobject_unlock(&phys->object);
+	kobject_unlock(&space->object);
 	return 0;
 }
 
-int addr_space_remove_map( addr_space_t *space, addr_entry_t *ent ){
+int addr_space_remove_map(addr_space_t *space, addr_entry_t *ent) {
 	phys_frame_t *phys = ent->frame;
 	uintptr_t v_start = ent->addr - (ent->addr  % PAGE_SIZE);
 
-	for ( uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE )
+	// XXX: not locking `space` since addr_space_unmap will lock it
+	// TODO: keep track of recursive locks in mutex_t
+
+	//kobject_lock(&space->object);
+	kobject_lock(&phys->object);
+
+	for (uintptr_t page = 0; page < phys->size * PAGE_SIZE; page += PAGE_SIZE)
 	{
 		void *v = (void *)(v_start + page);
 
-		unmap_page( v );
+		unmap_page(v);
 	}
 
-	phys_frame_unmap( ent->frame );
-	addr_map_remove( space->map, ent );
+	phys_frame_unmap(ent->frame);
+	addr_map_remove(space->map, ent);
 
+	kobject_unlock(&phys->object);
+	//kobject_unlock(&space->object);
 	return 0;
 }
 
-void phys_frame_init( void ){
+void phys_frame_init(void) {
 	static bool initialized = false;
 
-	if ( !initialized ){
+	if (!initialized) {
 		initialized = true;
-		slab_init_at( &phys_frame_slab, region_get_global(),
-		              sizeof( phys_frame_t ), NO_CTOR, NO_DTOR );
+		slab_init_at(&phys_frame_slab, region_get_global(),
+		             sizeof(phys_frame_t), NO_CTOR, NO_DTOR);
 	}
 }
 
-phys_frame_t *phys_frame_create( uintptr_t addr, size_t size, unsigned flags ){
-	phys_frame_t *ret = slab_alloc( &phys_frame_slab );
+phys_frame_t *phys_frame_create(uintptr_t addr, size_t size, unsigned flags) {
+	phys_frame_t *ret = slab_alloc(&phys_frame_slab);
 
 	ret->address    = addr;
 	ret->size       = size;
 	ret->flags      = flags;
-	ret->references = 0;
 	ret->mappings   = 0;
+	kobject_init(&ret->object, KOBJECT_TYPE_PHYS_MEMORY);
 
 	return ret;
 }
 
-void phys_frame_map( phys_frame_t *phys ){
-	// TODO: locking
-	phys->mappings++;
-	phys->references++;
+void phys_frame_map(phys_frame_t *phys) {
+	atomic_fetch_add(&phys->mappings, 1);
 }
 
-void phys_frame_unmap( phys_frame_t *phys ){
-	// TODO: locking
-	KASSERT( phys->mappings != 0 );
-	phys->mappings--;
-	// TODO: shouldn't this be phys->references--?
-	phys->references++;
+void phys_frame_unmap(phys_frame_t *phys) {
+	KASSERT(phys->mappings != 0);
+	atomic_fetch_sub(&phys->mappings, 1);
 
 	if (phys->mappings == 0) {
-		debug_printf( "=== %u: no mappings, might be able to free this\n", __func__ );
+		debug_printf("=== %u: no mappings, might be able to free this\n", __func__);
 	}
 }
 
-phys_frame_t *phys_frame_split( phys_frame_t *phys, size_t offset ){
-	// TODO: locking
+phys_frame_t *phys_frame_split(phys_frame_t *phys, size_t offset) {
+	kobject_lock(&phys->object);
 
-	if ( phys->mappings != 0 ){
+	if (atomic_load(&phys->mappings) != 0) {
 		// can't split a frame that is currently mapped
+		kobject_unlock(&phys->object);
 		return NULL;
 	}
 
 	// resulting frame must be smaller than the original frame, and must
 	// be non-zero in size
-	if ( offset == 0 || offset >= phys->size ){
+	if (offset == 0 || offset >= phys->size) {
+		kobject_unlock(&phys->object);
 		return NULL;
 	}
 
-	phys_frame_t *ret = phys_frame_create( phys->address + offset * PAGE_SIZE,
-	                                       phys->size - offset,
-	                                       phys->flags );
+	phys_frame_t *ret = phys_frame_create(phys->address + offset * PAGE_SIZE,
+	                                      phys->size - offset,
+	                                      phys->flags);
 
 	// adjust the size of the original frame
 	phys->size = offset;
 
+	kobject_unlock(&phys->object);
 	return ret;
 }
 
 //phys_frame_t *phys_frame_join( )
 
-addr_map_t *addr_map_create( region_t *region ){
-	addr_map_t *ret = region_alloc( region );
+addr_map_t *addr_map_create(region_t *region) {
+	addr_map_t *ret = region_alloc(region);
 
-	if ( ret ){
-		memset( ret, 0, sizeof( *ret ));
+	if (ret) {
+		memset(ret, 0, sizeof(*ret));
 
 		ret->region     = region;
 		ret->entries    = ADDR_MAP_ENTRIES_PER_PAGE;
 		ret->used       = 0;
 
-		debug_printf( "map size (w/ root):  %u\n", sizeof( addr_map_t ));
-		debug_printf( "map size (w/o root): %u\n", sizeof( ret->map ));
-		debug_printf( "entries per page:    %u\n", ADDR_MAP_ENTRIES_PER_PAGE );
+		debug_printf("map size (w/ root):  %u\n", sizeof(addr_map_t));
+		debug_printf("map size (w/o root): %u\n", sizeof(ret->map));
+		debug_printf("entries per page:    %u\n", ADDR_MAP_ENTRIES_PER_PAGE);
 	}
 
 	return ret;

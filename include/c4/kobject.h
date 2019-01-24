@@ -39,4 +39,9 @@ static inline void kobject_unlock(kobject_t *obj) {
     mutex_unlock(&obj->mutex);
 }
 
+static inline void kobject_init(kobject_t *obj, unsigned type) {
+    obj->type = type;
+    mutex_init(&obj->mutex);
+}
+
 #endif
