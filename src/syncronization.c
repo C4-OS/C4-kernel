@@ -65,8 +65,6 @@ void mutex_unlock(mutex_t *mutex) {
 	}
 
 	thread_t *cur = sched_current_thread();
-
-	KASSERT(cur == __atomic_exchange_n(&mutex->active, NULL, __ATOMIC_SEQ_CST));
 	lock_unlock(&mutex->lock);
 
 	if (next_thread) {

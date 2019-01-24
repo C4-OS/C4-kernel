@@ -26,11 +26,18 @@ typedef struct thread_node thread_node_t;
 
 TYPESAFE_QUEUE(thread_t, thread_queue);
 
+#include <c4/kobject.h>
 #include <c4/message.h>
 
 typedef struct thread {
 	thread_regs_t registers;
 	void          *kernel_stack;
+
+	// TODO: need to change routines in scheduler.s, currently it's assumed
+	//       thread_regs_t will be the first field in the struct
+	//       this can wait until implementing the object GC though.
+	kobject_t     object;
+
 
 	addr_space_t  *addr_space;
 	cap_space_t   *cap_space;

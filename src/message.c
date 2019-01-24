@@ -44,8 +44,10 @@ retry:
 		// if there's a thread in the queue, copy it's message to the buffer
 		// and requeue it in the scheduler
 		if (sender) {
+			kobject_lock(&sender->object);
 			cur->message = sender->message;
 			set_sender_state(sender);
+			kobject_unlock(&sender->object);
 			sched_add_thread(sender);
 
 		// otherwise block the thread and wait for a message to be recieved.
@@ -82,11 +84,14 @@ bool message_try_send(msg_queue_t *queue, message_t *msg) {
 		return false;
 	}
 
+	kobject_lock(&thread->object);
+
 	// handle kernel interface messages
 	if (is_kernel_msg(msg)) {
 		bool should_send = kernel_msg_handle_send(msg, thread);
 
 		if (!should_send) {
+			kobject_unlock(&thread->object);
 			return true;
 		}
 	}
@@ -97,6 +102,7 @@ bool message_try_send(msg_queue_t *queue, message_t *msg) {
 	SET_FLAG(thread, THREAD_FLAG_PENDING_MSG);
 	thread->state = SCHED_STATE_RUNNING;
 	thread->message = *msg;
+	kobject_unlock(&thread->object);
 	sched_add_thread(thread);
 
 	return true;
@@ -264,8 +270,10 @@ bool message_send_async(msg_queue_async_t *queue, message_t *msg) {
 	thread_t *target = thread_queue_pop_front(&queue->recievers);
 
 	if (target) {
+		kobject_lock(&target->object);
 		target->state = SCHED_STATE_RUNNING;
 		sched_add_thread(target);
+		kobject_unlock(&target->object);
 	}
 
 	kobject_unlock(&queue->object);

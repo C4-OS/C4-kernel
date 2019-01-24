@@ -50,6 +50,15 @@ void sched_switch_thread( void ){
 	if (next){
 		KASSERT(next->state == SCHED_STATE_RUNNING);
 		KASSERT(FLAG(next, THREAD_FLAG_RUNNING) == false);
+
+		if (next->state != SCHED_STATE_RUNNING || FLAG(next, THREAD_FLAG_RUNNING)) {
+			debug_printf("/!\\ thread is already running or something!\n");
+			debug_printf("    %p: state: %u, flags: %u, id: %u\n", next, next->state, next->flags, next->id);
+
+			lock_unlock(&sched_lock);
+			sched_jump_to_thread(global_idle_threads[cur_cpu]);
+		}
+
 		lock_unlock(&sched_lock);
 		sched_jump_to_thread(next);
 
@@ -84,7 +93,13 @@ void sched_jump_to_thread(thread_t *thread) {
 	if (cur) {
 		cur->kernel_stack = kernel_stack_get();
 		UNSET_FLAG(cur, THREAD_FLAG_RUNNING);
+
+		// unlock currently running thread
+		kobject_unlock(&cur->object);
 	}
+
+	// lock the thread while it's running
+	kobject_lock(&thread->object);
 
 	SET_FLAG(thread, THREAD_FLAG_RUNNING);
 	kernel_stack_set(thread->kernel_stack);
