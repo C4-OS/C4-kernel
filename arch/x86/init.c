@@ -16,6 +16,7 @@
 #include <c4/scheduler.h>
 #include <c4/message.h>
 #include <c4/bootinfo.h>
+#include <c4/timer.h>
 
 
 // TODO: move this to a more appropriate place
@@ -393,6 +394,8 @@ void arch_init( multiboot_header_t *header ){
 	phys_memmap_t *memmaps = NULL;
 
 	debug_puts( ">> Booting C4 kernel\n" );
+	timers_init();
+
 	debug_puts( "Storing boot info... " );
 	bootinfo_init( &bootinfo, header );
 	debug_puts( "done\n" );

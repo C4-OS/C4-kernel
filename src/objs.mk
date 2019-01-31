@@ -11,6 +11,7 @@ k-obj += src/syscall.o
 k-obj += src/interrupts.o
 k-obj += src/capability.o
 k-obj += src/syncronization.o
+k-obj += src/timer.o
 k-obj += src/mm/region.o
 k-obj += src/mm/slab.o
 k-obj += src/mm/addrspace.o

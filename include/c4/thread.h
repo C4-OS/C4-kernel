@@ -38,6 +38,10 @@ typedef struct thread {
 	//       this can wait until implementing the object GC though.
 	kobject_t     object;
 
+	// runtime in nanoseconds
+	uint64_t runtime;
+	// timestamp (in nanoseconds) when the thread started running
+	uint64_t start_timestamp;
 
 	addr_space_t  *addr_space;
 	cap_space_t   *cap_space;
@@ -49,11 +53,12 @@ typedef struct thread {
 	//       maybe not even an endpoint at all. Definitely a security issue.
 	msg_queue_t   *pager;
 
-	unsigned id;
-	unsigned state;
-	unsigned flags;
+	uint32_t id;
+	uint32_t state;
+	uint32_t flags;
 
 	message_t message;
+	uint16_t priority;
 } thread_t;
 
 void init_threading( void );

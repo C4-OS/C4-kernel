@@ -4,6 +4,7 @@
 #include <c4/debug.h>
 #include <c4/common.h>
 #include <c4/syncronization.h>
+#include <c4/timer.h>
 
 static lock_t sched_lock;
 static thread_queue sched_list;
@@ -92,6 +93,7 @@ void sched_jump_to_thread(thread_t *thread) {
 	// swap per-thread kernel stacks
 	if (cur) {
 		cur->kernel_stack = kernel_stack_get();
+		cur->runtime += timer_get_timestamp_ns() - cur->start_timestamp;
 		UNSET_FLAG(cur, THREAD_FLAG_RUNNING);
 
 		// unlock currently running thread
@@ -102,6 +104,8 @@ void sched_jump_to_thread(thread_t *thread) {
 	kobject_lock(&thread->object);
 
 	SET_FLAG(thread, THREAD_FLAG_RUNNING);
+	thread->start_timestamp = timer_get_timestamp_ns();
+
 	kernel_stack_set(thread->kernel_stack);
 	sched_do_thread_switch(cur, thread);
 }
