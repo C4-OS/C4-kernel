@@ -122,7 +122,11 @@ void mp_handle_ioapic(void *lapic, void *ptr){
 
 	void *ioapic_ptr = io_phys_to_virt(ioapic->address);
 	ioapic_add(ioapic_ptr, ioapic->id);
+
+	// TODO: command line/compile time option to have verbose output
+	/*
 	ioapic_print_redirects(ioapic->id);
+	*/
 
 	/*
 	// both the version and maximum redirects are encoded in the version register
@@ -162,11 +166,14 @@ void mp_handle_ioapic(void *lapic, void *ptr){
 void mp_handle_io_interrupt(void *lapic, void *ptr){
 	mp_interrupt_t *intr = ptr;
 
+	// TODO: options
+	/*
 	debug_printf(" - int type: %u\n", intr->int_type);
 	debug_printf(" - src id:   %u\n", intr->source_bus_id);
 	debug_printf(" - src irq:  %u\n", intr->source_bus_irq);
 	debug_printf(" - dst id:   %u\n", intr->dest_apic_id);
 	debug_printf(" - dst irq:  %u\n", intr->dest_apic_intin);
+	*/
 
 	ioapic_redirect_t redirect = ioapic_get_redirect(intr->dest_apic_id,
 	                                                 intr->dest_apic_intin);
@@ -174,8 +181,10 @@ void mp_handle_io_interrupt(void *lapic, void *ptr){
 	uint8_t active_high = (intr->int_type & 3) == 1;
 	uint8_t level_triggered = ((intr->int_type >> 2) & 3) == 3;
 
+	/*
 	debug_printf(" - act. hi:  %u\n", active_high);
 	debug_printf(" - lvl trig: %u\n", level_triggered);
+	*/
 
 	redirect.vector = intr->dest_apic_intin + 32; // IRQs start at 32
 	redirect.delivery = IOAPIC_DELIVERY_FIXED;
@@ -211,40 +220,51 @@ void mp_enumerate(mp_float_t *mp){
 	}
 
 	if (!apic_supported()){
-		debug_puts(">> CPU doesn't have an APIC lol\n");
-		debug_puts(">> CPU doesn't have an APIC lol\n");
+		debug_puts(">> APIC not supported, bailing out...\n");
 		return;
 	}
 
 	debug_puts(">> Found MP tables, trying to start APs...\n");
 	//hexdump(mp, 512);
 
+	// TODO: maybe have command line or compile time option to dump tables
+	/*
 	debug_printf("found multiprocessing struct: %p\n", mp);
 	debug_printf(" - length:   %u\n", mp->length);
 	debug_printf(" - revision: %u\n", mp->revision);
 	debug_printf(" - features: %b\n", mp->features);
 	debug_printf(" - config:   0x%x\n", mp->config_table);
+	*/
 
 	mp_config_t *config = (void *)low_phys_to_virt(mp->config_table);
 
+	/*
 	debug_printf("found mp config table: 0x%x\n", config);
 	debug_printf(" - length:   %u\n", config->length);
 	debug_printf(" - entries:  %u\n", config->entry_count);
 	debug_printf(" - lapic:    0x%x\n", config->lapic_addr);
+	*/
 
 	void *lapic = (void *)io_phys_to_virt(config->lapic_addr);
+	/*
 	debug_printf(" - adjusted: %p\n", lapic);
+	*/
 
 	mp_cpu_entry_t *entry = (void *)((uint8_t *)config + sizeof(mp_config_t));
 
 	for (unsigned i = 0; i < config->entry_count; i++){
+		/*
 		debug_printf("found mp table entry: 0x%x\n", entry);
+		*/
+
 		bool is_cpu = entry->type == 0;
+		/*
 		char *types[] = { "cpu", "bus", "ioapic", "interrupt", "interrupt" };
 
 		debug_printf(" - type:     %u (%s)\n",
 					  entry->type,
 					  types[entry->type]);
+		 */
 
 		switch (entry->type){
 			case MP_TYPE_CPU:
