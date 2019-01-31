@@ -6,6 +6,11 @@
 #include <c4/paging.h>
 #include <c4/capability.h>
 
+// TODO: make this tweakable once config stuff is implemented
+enum {
+	THREAD_DEFAULT_PRIORITY = 2048,
+};
+
 enum {
 	THREAD_FLAG_NONE        = 0,
 	THREAD_FLAG_USER        = 1,
@@ -56,9 +61,9 @@ typedef struct thread {
 	uint32_t id;
 	uint32_t state;
 	uint32_t flags;
+	uint32_t priority;
 
 	message_t message;
-	uint16_t priority;
 } thread_t;
 
 void init_threading( void );

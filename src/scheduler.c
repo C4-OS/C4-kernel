@@ -1,13 +1,15 @@
 #include <c4/scheduler.h>
 #include <c4/klib/string.h>
+#include <c4/klib/andtree.h>
 #include <c4/thread.h>
 #include <c4/debug.h>
 #include <c4/common.h>
 #include <c4/syncronization.h>
 #include <c4/timer.h>
+#include <stdint.h>
 
 static lock_t sched_lock;
-static thread_queue sched_list;
+static c4_atree_t sched_run_tree;
 
 static thread_t *current_threads[SCHED_MAX_CPUS] = {NULL};
 static thread_t *global_idle_threads[SCHED_MAX_CPUS] = {NULL};
@@ -18,8 +20,21 @@ static void idle_thread( void ){
 	}
 }
 
+static int64_t sched_thread_vruntime(void *b) {
+	thread_t *thread = b;
+
+	// simple virtual runtime, the vruntime is just the thread runtime in
+	// nanoseconds divided by it's priority. definitely room for improvement,
+	// but this is pretty flexible as-is.
+	//
+	// TODO: to adjust the thread's priority, we have to make sure the thread
+	//       isn't in the run queue, otherwise it'll mess up the tree ordering.
+	return thread->runtime / thread->priority;
+}
+
 void sched_init(void) {
-	thread_queue_init(&sched_list);
+	atree_init(&sched_run_tree, sched_thread_vruntime);
+
 	memset(&current_threads, 0, sizeof(current_threads));
 	memset(&global_idle_threads, 0, sizeof(global_idle_threads));
 }
@@ -39,34 +54,34 @@ void sched_switch_thread( void ){
 	unsigned cur_cpu = sched_current_cpu();
 
 	if (current_threads[cur_cpu]
-		&& current_threads[cur_cpu] != global_idle_threads[cur_cpu]
-		&& current_threads[cur_cpu]->state == SCHED_STATE_RUNNING)
+	    && current_threads[cur_cpu] != global_idle_threads[cur_cpu]
+	    && current_threads[cur_cpu]->state == SCHED_STATE_RUNNING)
 	{
 		UNSET_FLAG(current_threads[cur_cpu], THREAD_FLAG_RUNNING);
-		thread_queue_push_back(&sched_list, current_threads[cur_cpu]);
+		atree_insert(&sched_run_tree, current_threads[cur_cpu]);
 	}
 
-	thread_t *next = thread_queue_pop_front(&sched_list);
+	c4_anode_t *next_node = atree_start(&sched_run_tree);
+	thread_t *next = global_idle_threads[cur_cpu];
 
-	if (next){
+	if (next_node) {
+		next = next_node->data;
+		atree_remove(&sched_run_tree, next_node);
+
+		KASSERT(next != NULL);
 		KASSERT(next->state == SCHED_STATE_RUNNING);
 		KASSERT(FLAG(next, THREAD_FLAG_RUNNING) == false);
 
 		if (next->state != SCHED_STATE_RUNNING || FLAG(next, THREAD_FLAG_RUNNING)) {
 			debug_printf("/!\\ thread is already running or something!\n");
-			debug_printf("    %p: state: %u, flags: %u, id: %u\n", next, next->state, next->flags, next->id);
-
-			lock_unlock(&sched_lock);
-			sched_jump_to_thread(global_idle_threads[cur_cpu]);
+			debug_printf("    %p: state: %u, flags: %u, id: %u\n",
+			             next, next->state, next->flags, next->id);
+			next = global_idle_threads[cur_cpu];
 		}
-
-		lock_unlock(&sched_lock);
-		sched_jump_to_thread(next);
-
-	} else {
-		lock_unlock(&sched_lock);
-		sched_jump_to_thread(global_idle_threads[cur_cpu]);
 	}
+
+	lock_unlock(&sched_lock);
+	sched_jump_to_thread(next);
 }
 
 void kernel_stack_set( void *addr );
@@ -76,6 +91,11 @@ void sched_jump_to_thread(thread_t *thread) {
 	unsigned cur_cpu = sched_current_cpu();
 	thread_t *cur = current_threads[cur_cpu];
 	current_threads[cur_cpu] = thread;
+
+	if (cur == thread) {
+		// we're already running this thread, nothing to do
+		return;
+	}
 
 	if (!cur || thread->addr_space != cur->addr_space) {
 		// XXX: cause a page fault if the address of the new page
@@ -95,9 +115,6 @@ void sched_jump_to_thread(thread_t *thread) {
 		cur->kernel_stack = kernel_stack_get();
 		cur->runtime += timer_get_timestamp_ns() - cur->start_timestamp;
 		UNSET_FLAG(cur, THREAD_FLAG_RUNNING);
-
-		// unlock currently running thread
-		kobject_unlock(&cur->object);
 	}
 
 	// lock the thread while it's running
@@ -107,6 +124,14 @@ void sched_jump_to_thread(thread_t *thread) {
 	thread->start_timestamp = timer_get_timestamp_ns();
 
 	kernel_stack_set(thread->kernel_stack);
+
+	if (cur) {
+		// unlock currently running thread
+		kobject_unlock(&cur->object);
+	}
+
+	// TODO: set timer interrupt based on thread's priority, or disable the
+	//       timer and wait for an interrupt if idle
 	sched_do_thread_switch(cur, thread);
 }
 
@@ -120,7 +145,11 @@ void sched_add_thread(thread_t *thread) {
 	// TODO: threads shouldn't be added if they're not already in running state
 	KASSERT(thread->state == SCHED_STATE_RUNNING);
 	if (thread->state == SCHED_STATE_RUNNING) {
-		thread_queue_push_back(&sched_list, thread);
+		atree_insert(&sched_run_tree, thread);
+
+		// TODO: if the thread's priority is higher than another thread
+		//       on the system (according to sched_thread_vruntime()) then
+		//       preempt whatever other thread is running
 	}
 
 	lock_unlock(&sched_lock);
@@ -135,7 +164,7 @@ void sched_thread_continue(thread_t *thread) {
 		// clear 'faulted' flag, assuming that if there was a fault,
 		// the thread calling this function has resolved it
 		UNSET_FLAG(thread, THREAD_FLAG_FAULTED);
-		thread_queue_push_back(&sched_list, thread);
+		atree_insert(&sched_run_tree, thread);
 	}
 
 	lock_unlock(&sched_lock);

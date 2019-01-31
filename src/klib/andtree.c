@@ -391,6 +391,7 @@ void atree_remove_repair( c4_atree_t *tree, c4_anode_t *node ){
 static inline c4_anode_t *make_anode( void *data ){
 	c4_anode_t *ret = slab_alloc(&atree_slab);
 
+	memset(ret, 0, sizeof(*ret));
 	ret->data = data;
 	ret->level = 1;
 	ret->leaves[LEFT] = ret->leaves[RIGHT] = &sentinel;
@@ -409,12 +410,12 @@ c4_anode_t *atree_insert( c4_atree_t *tree, void *data ){
 	tree->nodes += 1;
 
 // flag to enable debugging checks, should normally be disabled
-#ifdef atree_CHECK_OPS
-	printf("==> should have %u nodes, have %u\n",
-		   tree->nodes, count_nodes(tree->root));
+#ifdef ATREE_CHECK_OPS
+	debug_printf("==> should have %u nodes, have %u\n",
+		            tree->nodes, count_nodes(tree->root));
 
-	assert(tree->nodes == count_nodes(tree->root));
-	assert(atree_check(tree) == true);
+	KASSERT(tree->nodes == count_nodes(tree->root));
+	KASSERT(atree_check(tree) == true);
 #endif
 
 	return node;
@@ -424,18 +425,18 @@ void atree_remove( c4_atree_t *tree, c4_anode_t *node ){
 	atree_remove_repair(tree, node);
 
 // flag to enable debugging checks, should normally be disabled
-#ifdef atree_CHECK_OPS
-	printf("==> should have %u nodes, have %u\n",
-		   tree->nodes, count_nodes(tree->root));
-	assert(tree->nodes == count_nodes(tree->root));
+#ifdef ATREE_CHECK_OPS
+	debug_printf("==> should have %u nodes, have %u\n",
+		            tree->nodes, count_nodes(tree->root));
+	KASSERT(tree->nodes == count_nodes(tree->root));
 
 	if (!atree_check(tree)){
-		puts("----");
+		debug_puts("----");
 		atree_print(tree);
-		puts("----");
+		debug_puts("----");
 	}
 
-	assert(atree_check(tree) == true);
+	KASSERT(atree_check(tree) == true);
 #endif
 }
 

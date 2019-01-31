@@ -31,6 +31,7 @@ thread_t *thread_create( void (*entry)(void),
 	ret->addr_space = space;
 	ret->flags      = flags;
 	ret->cap_space  = NULL;
+	ret->priority   = THREAD_DEFAULT_PRIORITY;
 	kobject_init(&ret->object, KOBJECT_TYPE_THREAD);
 
 	// TODO: register with kobject list
