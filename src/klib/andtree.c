@@ -30,12 +30,12 @@ static inline unsigned parentside( c4_anode_t *node ){
 }
 
 
-static inline unsigned direction( int n ){
+static inline unsigned direction( int64_t n ){
 	return !(n <= 0);
 }
 
 static inline
-int atree_compare( c4_atree_t *tree, int key, c4_anode_t *node ){
+int64_t atree_compare( c4_atree_t *tree, int64_t key, c4_anode_t *node ){
 	return key - tree->get_key(node->data);
 }
 
@@ -59,11 +59,11 @@ static inline c4_anode_t *find_max_node( c4_anode_t *node ){
     return node;
 }
 
-c4_anode_t *atree_find_key( c4_atree_t *tree, int key ){
+c4_anode_t *atree_find_key( c4_atree_t *tree, int64_t key ){
     c4_anode_t *temp = tree->root;
 
     while (!is_nil(temp)) {
-		int diff = atree_compare(tree, key, temp);
+		int64_t diff = atree_compare(tree, key, temp);
 
         if (diff == 0) {
             return temp;
@@ -89,7 +89,7 @@ c4_anode_t *atree_find_dupe_data( c4_atree_t *tree,
 		return node;
 	}
 
-	int diff = atree_compare(tree, tree->get_key(data), node);
+	int64_t diff = atree_compare(tree, tree->get_key(data), node);
 
 	if (diff == 0) {
 		for (unsigned i = 0; i < 2; i++) {
@@ -110,7 +110,7 @@ c4_anode_t *atree_find_data( c4_atree_t *tree, void *data ){
 	c4_anode_t *temp = tree->root;
 
 	while (!is_nil(temp)) {
-		int diff = atree_compare(tree, tree->get_key(data), temp);
+		int64_t diff = atree_compare(tree, tree->get_key(data), temp);
 
 		if (diff == 0){
 			return atree_find_dupe_data(tree, temp, data);
@@ -124,13 +124,13 @@ c4_anode_t *atree_find_data( c4_atree_t *tree, void *data ){
 
 static c4_anode_t *do_find_at_least( c4_atree_t *tree,
                                        c4_anode_t *node, 
-                                       int key )
+                                       int64_t key )
 {
 	if (is_nil(node)) {
 		return NULL;
 	}
 
-	int diff = atree_compare(tree, key, node);
+	int64_t diff = atree_compare(tree, key, node);
 	unsigned dir = direction(diff);
 
 	// found the exact value we're looking for, return it
@@ -148,7 +148,7 @@ static c4_anode_t *do_find_at_least( c4_atree_t *tree,
 	return temp;
 }
 
-c4_anode_t *atree_find_at_least( c4_atree_t *tree, int key ){
+c4_anode_t *atree_find_at_least( c4_atree_t *tree, int64_t key ){
 	return do_find_at_least(tree, tree->root, key);
 }
 
@@ -310,7 +310,7 @@ void atree_bin_insert( c4_atree_t *tree, c4_anode_t *node ){
 	c4_anode_t *temp = tree->root;
 
 	while (temp != node) {
-		int diff = atree_compare(tree, tree->get_key(node->data), temp);
+		int64_t diff = atree_compare(tree, tree->get_key(node->data), temp);
 		unsigned dir = !(diff < 0);
 
 		if (is_nil(temp->leaves[dir])) {
@@ -439,7 +439,7 @@ void atree_remove( c4_atree_t *tree, c4_anode_t *node ){
 #endif
 }
 
-void *atree_remove_key( c4_atree_t *tree, int key ){
+void *atree_remove_key( c4_atree_t *tree, int64_t key ){
 	c4_anode_t *node = atree_find_key(tree, key);
 	void *ret = NULL;
 
