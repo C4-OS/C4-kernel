@@ -2,6 +2,7 @@
 #include <c4/scheduler.h>
 #include <c4/thread.h>
 #include <c4/debug.h>
+#include <c4/klib/queue.h>
 
 void mutex_wait(mutex_t *mutex) {
 	while (!lock_trylock(&mutex->lock)) {
@@ -12,6 +13,7 @@ void mutex_wait(mutex_t *mutex) {
 
         // TODO: use generic queue functions here
         cur->state = SCHED_STATE_WAITING;
+        queue_push_back(&mutex->sleep_waiting, cur);
         /*
 		thread_list_remove(&cur->sched);
 		thread_list_insert(&mutex->sleep_waiting, &cur->sched);
@@ -62,12 +64,13 @@ void mutex_unlock(mutex_t *mutex) {
 		// only try to wake up a thread if there's nothing spinning on the lock
         // TODO: generic queue
 		//next_thread = thread_list_pop(&mutex->sleep_waiting);
+        next_thread = queue_pop_front(&mutex->sleep_waiting);
 	}
 
-	thread_t *cur = sched_current_thread();
 	lock_unlock(&mutex->lock);
 
 	if (next_thread) {
+        // TODO: thread should be locked here...
         next_thread->state = SCHED_STATE_RUNNING;
 		sched_add_thread(next_thread);
 	}

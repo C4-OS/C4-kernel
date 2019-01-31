@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <c4/klib/string.h>
+#include <c4/klib/queue.h>
 
 #include <stdatomic.h>
 
@@ -15,14 +16,15 @@ typedef struct c4_mutex {
 	uint32_t run_waiting;
 
 	// threads that are sleeping on this lock
-	// TODO: use generic queue here
-	//thread_list_t sleep_waiting;
-
-	// current thread holding the lock, if any
-	//thread_t *active;
 	// XXX: can't include thread.h here, since this is part of kobject_t,
 	//      which in turn is part of message_t, which is part of thread_t,
 	//      which would be part of mutex_t here...
+	// TODO: find a way to include thread_t here so we can use TYPESAFE_QUEUE
+	//thread_list_t sleep_waiting;
+	queue_t sleep_waiting;
+
+	// current thread holding the lock, if any
+	//thread_t *active;
 	// TODO: structs could use some work
 	void *active;
 	lock_t lock;
@@ -44,6 +46,7 @@ static inline void lock_unlock(lock_t *lock) {
 
 static inline void mutex_init(mutex_t *mutex) {
 	memset(mutex, 0, sizeof(*mutex));
+	queue_init(&mutex->sleep_waiting);
 }
 
 void mutex_wait(mutex_t *mutex);

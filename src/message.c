@@ -272,8 +272,8 @@ bool message_send_async(msg_queue_async_t *queue, message_t *msg) {
 	if (target) {
 		kobject_lock(&target->object);
 		target->state = SCHED_STATE_RUNNING;
-		sched_add_thread(target);
 		kobject_unlock(&target->object);
+		sched_add_thread(target);
 	}
 
 	kobject_unlock(&queue->object);
