@@ -38,14 +38,29 @@ enum {
 
 enum {
 	APIC_ICR_DM              = 1 << 11,
+	APIC_ICR_DELIVERY_STATUS = 1 << 12,
 	APIC_ICR_LEVEL_ASSERT    = 1 << 14,
 	APIC_ICR_LEVEL           = 1 << 15,
-	APIC_ICR_DELIVERY_STATUS = 1 << 12,
 };
 
+// destination shorthand values
 enum {
-	APIC_IPI_INIT  = 0x500,
-	APIC_IPI_START = 0x600,
+	APIC_ICR_DSH_DESTINATION    = 0 << 18,
+	APIC_ICR_DSH_SELF           = 1 << 18,
+	APIC_ICR_DSH_INCLUDING_SELF = 2 << 18,
+	APIC_ICR_DSH_EXCLUDING_SELF = 3 << 18,
+};
+
+// interprocessor interrupt types in the ICR
+enum {
+	APIC_IPI_FIXED           = 0 << 8,
+	APIC_IPI_LOWEST_PRIORITY = 1 << 8,
+	APIC_IPI_SMI             = 2 << 8,
+	APIC_IPI_REMOTE_READ     = 3 << 8,
+	APIC_IPI_NMI             = 4 << 8,
+	APIC_IPI_INIT            = 5 << 8,
+	APIC_IPI_START           = 6 << 8,
+	APIC_IPI_EXT_INT         = 7 << 8,
 };
 
 // apic timer divisor options
@@ -68,6 +83,9 @@ bool apic_supported( void );
 void apic_enable( void );
 uint32_t apic_version( void );
 uint32_t apic_get_id( void );
+
+void apic_debug_isr(void);
+void apic_debug_irr(void);
 
 bool apic_is_enabled(void);
 void apic_end_of_interrupt(void);

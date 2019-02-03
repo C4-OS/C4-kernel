@@ -26,6 +26,7 @@ static mutex_t asdf;
 
 void timer_handler( interrupt_frame_t *frame ){
 	static unsigned counter = 0;
+	static bool called[SCHED_MAX_CPUS];
 	uint32_t id = 0;
 
 	if (counter == 0) {
@@ -38,6 +39,14 @@ void timer_handler( interrupt_frame_t *frame ){
 
 	if (apic_is_enabled()) {
 		id = apic_get_id();
+
+		if (!called[id]) {
+			called[id] = true;
+			debug_printf(" - CPU %u: timer interrupt called\n", id);
+			apic_debug_isr();
+			apic_debug_irr();
+		}
+
 		// for now, set the timer to activate every 10ms
 		apic_timer_one_shot(apic_timer_usec_to_ticks(10000));
 	}

@@ -65,6 +65,8 @@ void smp_thing(uint32_t cpu_num){
 	init_cpu_interrupts();
 	sched_init_cpu();
 	debug_printf("- CPU %u APIC is enabled\n", cpu_num);
+	debug_printf("- CPU %u APIC TPR: %u\n",
+	             cpu_num, apic_read(apic_get_base(), APIC_REG_TASK_PRIORITY));
 
 	// TODO: initialize CPU thread context here
 

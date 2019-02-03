@@ -56,7 +56,7 @@ typedef struct mp_cpu_entry {
 typedef struct mp_bus {
 	uint8_t  type;
 	uint8_t  id;
-	uint8_t  bus_type[6];
+	char     bus_type[6];
 } __attribute__((packed)) mp_bus_t;
 
 typedef struct mp_io_apic {

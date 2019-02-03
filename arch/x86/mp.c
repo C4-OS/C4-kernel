@@ -14,6 +14,89 @@
 void cpu_register(uint32_t cpu_num);
 bool cpu_is_booted(uint32_t cpu_num);
 
+// TODO: move bus stuff to another place, userland stuff will need to access
+//       bus info at some point. needs to be here now though to determine
+//       'default' interrupt configurations.
+#include <c4/klib/string.h>
+#define MP_MAX_BUSES 32
+
+enum {
+	BUS_TYPE_UNKNOWN,
+	BUS_TYPE_ISA,
+	BUS_TYPE_PCI,
+};
+
+static mp_bus_t buses[MP_MAX_BUSES];
+
+static void bus_register(mp_bus_t *bus) {
+	if (bus->id >= MP_MAX_BUSES) {
+		debug_printf(" - Bus ID %u is greater than MP_MAX_BUSES!\n", bus->id);
+		return;
+	}
+
+	buses[bus->id] = *bus;
+}
+
+static mp_bus_t *bus_get_by_id(unsigned bus_id) {
+	if (bus_id < MP_MAX_BUSES) {
+		return buses + bus_id;
+	}
+
+	return buses + bus_id;
+}
+
+static unsigned bus_type(unsigned bus_id) {
+	mp_bus_t *bus = bus_get_by_id(bus_id);
+
+	if (!bus) {
+		debug_printf(" - (unknown because invalid bus)\n");
+		return BUS_TYPE_UNKNOWN;
+	}
+
+	if (strncmp(bus->bus_type, "ISA", 3) == 0) {
+		return BUS_TYPE_ISA;
+
+	} else if (strncmp(bus->bus_type, "PCI", 3) == 0) {
+		return BUS_TYPE_PCI;
+	}
+
+	debug_printf(" - (unknown because unknown type string)\n");
+	return BUS_TYPE_UNKNOWN;
+}
+
+// returns true for active high, false for active low
+static bool bus_default_polarity(unsigned bus_id, bool level_triggered) {
+	unsigned type = bus_type(bus_id);
+
+	if (type == BUS_TYPE_ISA) {
+		return level_triggered? 0 : 1;
+
+	} else if (type == BUS_TYPE_PCI) {
+		// TODO: check PCI specs to make sure this is correct
+		return 0;
+	}
+
+	// default to active high for unknown buses, although interrupts from
+	// unknown buses should probably be ignored anyway...
+	return 1;
+}
+
+// return true for level triggered, false for edge triggered
+static bool bus_default_trigger(unsigned bus_id) {
+	unsigned type = bus_type(bus_id);
+
+	if (type == BUS_TYPE_ISA) {
+		return 0;
+
+	} else if (type == BUS_TYPE_PCI) {
+		// TODO: check PCI specs to make sure this is correct
+		return 1;
+	}
+
+	// default to level triggered for unknown buses
+	return 1;
+}
+
 // TODO: generic CPU info struct that doesn't rely on mp table entries,
 //       so that this function can be used with both IMPS and ACPI-based
 //       machines
@@ -87,6 +170,7 @@ void mp_handle_cpu(void *lapic, void *ptr){
 	static unsigned cpu_count = 0;
 	mp_cpu_entry_t *entry = ptr;
 
+	debug_printf(" = CPU:\n");
 	debug_printf(" - lapic id: %u\n", entry->local_apic_id);
 	debug_printf(" - flags:    0x%x ", entry->flags);
 
@@ -102,6 +186,9 @@ void mp_handle_cpu(void *lapic, void *ptr){
 void mp_handle_bus(void *lapic, void *ptr){
 	mp_bus_t *bus = ptr;
 
+	bus_register(bus);
+
+	debug_printf(" = Bus:\n");
 	debug_printf(" - id:       %u\n", bus->id);
 	debug_printf(" - type:     ");
 
@@ -117,6 +204,7 @@ void mp_handle_bus(void *lapic, void *ptr){
 void mp_handle_ioapic(void *lapic, void *ptr){
 	mp_io_apic_t *ioapic = ptr;
 
+	debug_printf(" = IOAPIC:\n");
 	debug_printf(" - id:       %u\n",   ioapic->id);
 	debug_printf(" - address:  0x%x\n", ioapic->address);
 
@@ -124,11 +212,8 @@ void mp_handle_ioapic(void *lapic, void *ptr){
 	ioapic_add(ioapic_ptr, ioapic->id);
 
 	// TODO: command line/compile time option to have verbose output
-	/*
 	ioapic_print_redirects(ioapic->id);
-	*/
 
-	/*
 	// both the version and maximum redirects are encoded in the version register
 	uint32_t version_reg = ioapic_read(ioapic_ptr, IOAPIC_REG_VERSION);
 	uint32_t version = version_reg & 0xff;
@@ -142,6 +227,7 @@ void mp_handle_ioapic(void *lapic, void *ptr){
 	debug_printf(" - redirect: 0x%x\n", redirect);
 	debug_printf(" - red end:  0x%x\n", redirect_end);
 
+	/*
 	debug_printf(" - redirection entries:\n");
 
 	for (unsigned i = 0; i < max_redirects; i++) {
@@ -167,24 +253,43 @@ void mp_handle_io_interrupt(void *lapic, void *ptr){
 	mp_interrupt_t *intr = ptr;
 
 	// TODO: options
-	/*
+	debug_printf(" = I/O interrupt:\n");
 	debug_printf(" - int type: %u\n", intr->int_type);
 	debug_printf(" - src id:   %u\n", intr->source_bus_id);
 	debug_printf(" - src irq:  %u\n", intr->source_bus_irq);
 	debug_printf(" - dst id:   %u\n", intr->dest_apic_id);
 	debug_printf(" - dst irq:  %u\n", intr->dest_apic_intin);
-	*/
 
-	ioapic_redirect_t redirect = ioapic_get_redirect(intr->dest_apic_id,
+	if (bus_type(intr->source_bus_id) == BUS_TYPE_UNKNOWN) {
+		debug_printf("   (unknown bus type, ignoring...)\n\n");
+		return;
+	}
+
+	// TODO: do smarter ioapic assignment
+	uint8_t destination = (intr->dest_apic_id == 0xff)? 0 : intr->dest_apic_id;
+	ioapic_redirect_t redirect = ioapic_get_redirect(destination,
 	                                                 intr->dest_apic_intin);
+	unsigned trigger_bits  = (intr->int_type >> 2) & 3;
+	unsigned polarity_bits = (intr->int_type & 3);
 
-	uint8_t active_high = (intr->int_type & 3) == 1;
-	uint8_t level_triggered = ((intr->int_type >> 2) & 3) == 3;
+	unsigned level_triggered =
+		trigger_bits? trigger_bits == 3
+	                : bus_default_trigger(intr->source_bus_id);
+	unsigned active_high =
+		polarity_bits? polarity_bits == 1
+	                 : bus_default_polarity(intr->source_bus_id,
+	                                        level_triggered);
 
-	/*
 	debug_printf(" - act. hi:  %u\n", active_high);
 	debug_printf(" - lvl trig: %u\n", level_triggered);
-	*/
+
+	if (!redirect.mask) {
+		// XXX: for now, if the entry is already set, then don't overwrite it.
+		debug_printf("   (ignored)\n\n", level_triggered);
+		return;
+	}
+
+	debug_printf("\n");
 
 	redirect.vector = intr->dest_apic_intin + 32; // IRQs start at 32
 	redirect.delivery = IOAPIC_DELIVERY_FIXED;
@@ -192,15 +297,20 @@ void mp_handle_io_interrupt(void *lapic, void *ptr){
 	redirect.polarity = !active_high;
 	redirect.trigger = level_triggered;
 	redirect.mask = false;
+	redirect.reserved = 0; // XXX: should we be setting reserved bits?
 	redirect.destination = 0; /* TODO: would it be better to
 	                                   assign to other CPUs? */
 
-	ioapic_set_redirect(intr->dest_apic_id, intr->dest_apic_intin, &redirect);
+	ioapic_set_redirect(destination, intr->dest_apic_intin, &redirect);
+	debug_printf(" - new redirect:\n");
+	ioapic_print_redirect(destination, intr->dest_apic_intin);
+	debug_printf("\n");
 }
 
 void mp_handle_interrupt(void *lapic, void *ptr){
 	mp_interrupt_t *intr = ptr;
 
+	debug_printf(" = Local interrupt:\n");
 	debug_printf(" - int type: %u\n", intr->int_type);
 	debug_printf(" - src id:   %u\n", intr->source_bus_id);
 	debug_printf(" - src irq:  %u\n", intr->source_bus_irq);

@@ -62,6 +62,7 @@ ioapic_redirect_t ioapic_get_redirect(ioapic_t id, unsigned entry) {
 
 	if (!is_valid_redirect(id, entry)) {
 		// TODO: error handling
+		debug_printf(" /!\\ invalid redirect %u for ioapic %u!\n", entry, id);
 		return ret;
 	}
 
@@ -79,6 +80,7 @@ void ioapic_set_redirect(ioapic_t id,
 	void *ioapic = ioapic_get(id);
 
 	if (!is_valid_redirect(id, entry)) {
+		debug_printf(" /!\\ invalid redirect %u for ioapic %u!\n", entry, id);
 		// TODO: error handling
 		return;
 	}
@@ -144,7 +146,8 @@ void ioapic_print_redirects(ioapic_t id) {
 
 	debug_printf(" - ioapic %u redirection table:\n", id);
 	for (unsigned i = 0; i < max_entries; i++) {
-		debug_printf(" > entry %u:\n", i);
+		debug_printf(" > entry %u/%u:\n", i, max_entries);
 		ioapic_print_redirect(id, i);
 	}
+	debug_printf("\n");
 }

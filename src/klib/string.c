@@ -39,3 +39,13 @@ char *strncpy(char *dest, const char *src, size_t n) {
 
 	return dest;
 }
+
+int strncmp(const char *s1, const char *s2, size_t n) {
+	for (size_t i = 0; i < n && *s1 && *s2; i++) {
+		if (s1[i] == s2[i]) continue;
+		if (s1[i] <  s2[i]) return -1;
+		if (s1[i] >  s2[i]) return 1;
+	}
+
+	return 0;
+}

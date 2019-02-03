@@ -75,6 +75,8 @@ void apic_enable(void){
 	//       be identity-mapped
 	uint32_t spiv = apic_read((void *)apic, APIC_REG_SPURIOUS_INTR_VEC);
 	apic_write((void *)apic, APIC_REG_SPURIOUS_INTR_VEC, spiv | 0x100);
+	// XXX: i dunno man
+	apic_end_of_interrupt();
 
 	apic_enabled = true;
 }
@@ -93,6 +95,26 @@ uint32_t apic_get_id(void){
 	void *apic = (void *)apic_get_base();
 
 	return apic_read(apic, APIC_REG_ID) >> 24;
+}
+
+void apic_debug_isr(void) {
+	void *apic = (void *)apic_get_base();
+	debug_printf(" = APIC ISR:\n");
+
+	for (unsigned i = APIC_REG_IN_SERVICE; i < 0x180; i += 0x10) {
+		uint32_t reg = apic_read(apic, i);
+		debug_printf(" > 0x%x : 0x%x\n", i, reg);
+	}
+}
+
+void apic_debug_irr(void) {
+	void *apic = (void *)apic_get_base();
+	debug_printf(" = APIC IRR:\n");
+
+	for (unsigned i = APIC_REG_INTR_REQUEST; i < 0x280; i += 0x10) {
+		uint32_t reg = apic_read(apic, i);
+		debug_printf(" > 0x%x : 0x%x\n", i, reg);
+	}
 }
 
 void apic_end_of_interrupt(void) {
