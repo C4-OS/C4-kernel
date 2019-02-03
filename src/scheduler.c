@@ -139,17 +139,44 @@ void sched_thread_yield( void ){
 	sched_switch_thread( );
 }
 
+#include <c4/arch/apic.h>
+
 void sched_add_thread(thread_t *thread) {
 	lock_spinlock(&sched_lock);
 
 	// TODO: threads shouldn't be added if they're not already in running state
 	KASSERT(thread->state == SCHED_STATE_RUNNING);
+	KASSERT(thread != NULL);
+
 	if (thread->state == SCHED_STATE_RUNNING) {
 		atree_insert(&sched_run_tree, thread);
 
-		// TODO: if the thread's priority is higher than another thread
-		//       on the system (according to sched_thread_vruntime()) then
-		//       preempt whatever other thread is running
+		bool sent = false;
+
+		// TODO: move this to x86-specific code
+		if (apic_is_enabled()) {
+			for (unsigned i = 0; i < SCHED_MAX_CPUS; i++) {
+				if (global_idle_threads[i]
+				    && current_threads[i] == global_idle_threads[i])
+				{
+					apic_send_ipi((void*)apic_get_base(),
+					              APIC_IPI_FIXED | 32, i);
+					sent = true;
+					break;
+				}
+			}
+		}
+
+		if (!sent
+		    && sched_current_thread()
+		    && sched_thread_vruntime(sched_current_thread())
+			< sched_thread_vruntime(thread))
+		{
+			// TODO: not this
+			lock_unlock(&sched_lock);
+			sched_thread_yield();
+			return;
+		}
 	}
 
 	lock_unlock(&sched_lock);
