@@ -47,6 +47,8 @@ typedef struct thread {
 	uint64_t runtime;
 	// timestamp (in nanoseconds) when the thread started running
 	uint64_t start_timestamp;
+	// wake up target timestamp (in nanoseconds) when sleeping
+	uint64_t sleep_target;
 
 	addr_space_t  *addr_space;
 	cap_space_t   *cap_space;

@@ -10,6 +10,7 @@
 
 static lock_t sched_lock;
 static c4_atree_t sched_run_tree;
+static c4_atree_t sched_sleep_tree;
 
 static thread_t *current_threads[SCHED_MAX_CPUS] = {NULL};
 static thread_t *global_idle_threads[SCHED_MAX_CPUS] = {NULL};
@@ -32,8 +33,15 @@ static int64_t sched_thread_vruntime(void *b) {
 	return thread->runtime / thread->priority;
 }
 
+static int64_t sched_thread_sleeptime(void *b) {
+	thread_t *thread = b;
+
+	return thread->sleep_target;
+}
+
 void sched_init(void) {
 	atree_init(&sched_run_tree, sched_thread_vruntime);
+	atree_init(&sched_sleep_tree, sched_thread_sleeptime);
 
 	memset(&current_threads, 0, sizeof(current_threads));
 	memset(&global_idle_threads, 0, sizeof(global_idle_threads));
@@ -53,6 +61,8 @@ void sched_switch_thread( void ){
 
 	unsigned cur_cpu = sched_current_cpu();
 
+	// reinsert the current thread into the run tree if it's still running
+	// and it's not an idle thread
 	if (current_threads[cur_cpu]
 	    && current_threads[cur_cpu] != global_idle_threads[cur_cpu]
 	    && current_threads[cur_cpu]->state == SCHED_STATE_RUNNING)
@@ -61,11 +71,35 @@ void sched_switch_thread( void ){
 		atree_insert(&sched_run_tree, current_threads[cur_cpu]);
 	}
 
-	c4_anode_t *next_node = atree_start(&sched_run_tree);
 	thread_t *next = global_idle_threads[cur_cpu];
+
+	// wake up sleeping threads
+	c4_anode_t *sleep_node = atree_start(&sched_sleep_tree);
+
+	while (sleep_node) {
+		thread_t *sleeper = sleep_node->data;
+
+		if (timer_get_timestamp_ns() >= sleeper->sleep_target) {
+			atree_remove(&sched_sleep_tree, sleep_node);
+
+			sleeper->sleep_target = 0;
+			sleeper->state = SCHED_STATE_RUNNING;
+
+			// TODO: wake up idle CPUs to handle the thread
+			atree_insert(&sched_run_tree, sleeper);
+			sleep_node = atree_start(&sched_sleep_tree);
+
+		} else {
+			sleep_node = NULL;
+		}
+	}
+
+	// try to find a runnable thread
+	c4_anode_t *next_node = atree_start(&sched_run_tree);
 
 	if (next_node) {
 		next = next_node->data;
+
 		atree_remove(&sched_run_tree, next_node);
 
 		KASSERT(next != NULL);
@@ -228,6 +262,23 @@ void sched_thread_kill(thread_t *thread) {
 		lock_unlock(&sched_lock);
 		thread_destroy(thread);
 	}
+}
+
+void sched_thread_sleep(uint32_t useconds) {
+	thread_t *cur = sched_current_thread();
+
+	if (useconds == 0) {
+		// nothing to do
+		return;
+	}
+
+	lock_spinlock(&sched_lock);
+	cur->state = SCHED_STATE_SLEEPING;
+	cur->sleep_target = timer_get_timestamp_ns() + (uint64_t)useconds*1000;
+	atree_insert(&sched_sleep_tree, cur);
+	lock_unlock(&sched_lock);
+
+	sched_thread_yield();
 }
 
 thread_t *sched_current_thread( void ){

@@ -34,6 +34,7 @@ typedef uintptr_t arg_t;
 typedef int (*syscall_func_t)( SYSCALL_ARGS );
 
 static int syscall_thread_exit( SYSCALL_ARGS );
+static int syscall_thread_sleep( SYSCALL_ARGS );
 static int syscall_thread_create( SYSCALL_ARGS );
 static int syscall_thread_set_addrspace( SYSCALL_ARGS );
 static int syscall_thread_set_capspace( SYSCALL_ARGS );
@@ -78,6 +79,7 @@ static int syscall_debug_putchar( SYSCALL_ARGS );
 static const syscall_func_t syscall_table[SYSCALL_MAX] = {
 	// thread syscalls
 	syscall_thread_exit,
+	syscall_thread_sleep,
 	syscall_thread_create,
 	syscall_thread_set_addrspace,
 	syscall_thread_set_capspace,
@@ -223,6 +225,15 @@ static int syscall_thread_exit( arg_t a, arg_t b, arg_t c, arg_t d ){
 	// shouldn't get here
 	debug_printf( "sched_thread_exit() failed for some reason...?\n" );
 	return 0;
+}
+
+static int syscall_thread_sleep(arg_t useconds,
+                                arg_t b, arg_t c, arg_t d)
+{
+	thread_t *cur = sched_current_thread();
+	sched_thread_sleep(useconds);
+
+	return C4_ERROR_NONE;
 }
 
 static int syscall_thread_create( arg_t user_entry,
